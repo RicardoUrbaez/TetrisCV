@@ -3,6 +3,9 @@
     "version": "1.0.0",
     "description": "Multiplayer Tetris with MediaPipe hand controls and Phaser 3",
     "main": "server.js",
+    "engines": {
+        "node": ">=20"
+    },
     "scripts": {
         "start": "node server.js",
         "test": "npm run test:js && npm run test:py",
