@@ -328,7 +328,13 @@
 
   function sendGarbageForClear(cleared) {
     var attackLines = attackLinesForClear(cleared);
-    if (!attackLines || screen !== "multi_game" || !roomCode) return;
+    if (!attackLines || screen !== "multi_game") return;
+    if (multiplayerMode === "cpu") {
+      applyCpuGarbage(attackLines);
+      showCvStatus("Sent " + attackLines + " garbage " + (attackLines === 1 ? "line" : "lines") + " to CPU");
+      return;
+    }
+    if (!roomCode) return;
     socket.emit("send-garbage", { lines: attackLines });
     showCvStatus("Sent " + attackLines + " garbage " + (attackLines === 1 ? "line" : "lines"));
   }
@@ -389,7 +395,7 @@
     if (rematchBtn) {
       rematchBtn.disabled = false;
       rematchBtn.textContent = pendingRematchIncoming ? "ACCEPT REMATCH" : "REMATCH";
-      if (canRematch && roomCode) rematchBtn.classList.remove("hidden");
+      if (canRematch && (roomCode || multiplayerMode === "cpu")) rematchBtn.classList.remove("hidden");
       else rematchBtn.classList.add("hidden");
     }
     if (overlay) overlay.classList.remove("hidden");
@@ -409,12 +415,16 @@
     paused = false;
     showPause(false);
     setPauseLabel();
-    showMatchResult("VICTORY", "Opponent topped out. Request a rematch or exit to the menu.", true);
+    showMatchResult("VICTORY", (multiplayerMode === "cpu" ? "CPU topped out." : "Opponent topped out.") + " Request a rematch or exit to the menu.", true);
   }
 
   function requestRematch() {
     var rematchBtn = document.getElementById("btnRematch");
     var messageEl = document.getElementById("matchResultMessage");
+    if (multiplayerMode === "cpu") {
+      goToReadyStateMulti();
+      return;
+    }
     if (!roomCode) return;
 
     if (pendingRematchIncoming) {
@@ -542,10 +552,12 @@
 
   function goToReadyStateMulti() {
     resetGame();
+    if (multiplayerMode === "cpu") resetCpuOpponent();
     gamePhase = "ready";
     showGameOver(false);
     showPause(false);
     setPauseLabel();
+    setVersusModeLabels();
     var multiOl = document.getElementById("multiReadyOverlay");
     if (multiOl) { multiOl.classList.remove("hidden"); }
     var label = document.getElementById("multiReadyLabel");
@@ -563,6 +575,9 @@
   var socket = io();
   var roomCode = null, isHost = false, playerCount = 0;
   var stateBroadcastInterval = null;
+  var multiplayerMode = "online"; // online | cpu
+  var cpuState = null;
+  var CPU_MOVE_MS = 120;
   var pendingInviteRoomCode = getRoomCodeFromUrl();
 
   function normalizeRoomCode(value) {
@@ -614,9 +629,288 @@
     }
   }
 
+  function setText(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function setVersusModeLabels() {
+    if (multiplayerMode === "cpu") {
+      setText("versusModeLabel", "CPU MATCH");
+      setText("versusPlayersLabel", "1 PLAYER + CPU");
+      setText("versusGarbageLabel", "GARBAGE ON");
+      setText("opponentNameLabel", "CPU");
+      setText("opponentCameraLabel", "CPU BOARD");
+      setText("btnStartMultiGame", "START");
+      return;
+    }
+
+    setText("versusModeLabel", "ONLINE ROOM");
+    setText("versusPlayersLabel", "2 PLAYERS");
+    setText("versusGarbageLabel", "GARBAGE ON");
+    setText("opponentNameLabel", "OPPONENT");
+    setText("opponentCameraLabel", "OPPONENT CAMERA");
+    setText("btnStartMultiGame", "START (HOST)");
+  }
+
+  function cloneRows(rows) {
+    return rows.map(function(row) { return row.slice(); });
+  }
+
+  function cloneCells(cells) {
+    return cells.map(function(cell) { return cell.slice(); });
+  }
+
+  function createCpuState() {
+    return {
+      board: createEmptyBoard(),
+      current: null,
+      currentPx: 0,
+      currentPy: 0,
+      bag: [],
+      nextPieceName: null,
+      score: 0,
+      lines: 0,
+      level: 1,
+      gameOver: false,
+      gravityAcc: 0,
+      moveAcc: 0,
+      target: null
+    };
+  }
+
+  function publishCpuState() {
+    if (!cpuState) {
+      opponentState = null;
+      return;
+    }
+
+    opponentState = {
+      board: cloneRows(cpuState.board),
+      current: cpuState.current ? { name: cpuState.current.name, cells: cloneCells(cpuState.current.cells) } : null,
+      currentPx: cpuState.currentPx,
+      currentPy: cpuState.currentPy,
+      score: cpuState.score,
+      lines: cpuState.lines,
+      level: cpuState.level,
+      gameOver: cpuState.gameOver
+    };
+  }
+
+  function cpuRefillBag(state) {
+    if (state.bag.length === 0) state.bag = makeBag();
+  }
+
+  function getCpuRotations(name) {
+    var cells = cloneCells(getPiece(name).cells);
+    var rotations = [];
+    var seen = {};
+    for (var i = 0; i < 4; i++) {
+      var key = cells.map(function(cell) { return cell[0] + "," + cell[1]; }).join("|");
+      if (!seen[key]) {
+        seen[key] = true;
+        rotations.push(cloneCells(cells));
+      }
+      cells = rotateCells(cells, true);
+    }
+    return rotations;
+  }
+
+  function analyzeCpuBoard(testBoard) {
+    var heights = [];
+    var holes = 0;
+    for (var col = 0; col < BOARD_W; col++) {
+      var found = false;
+      var height = 0;
+      for (var row = 0; row < BOARD_H; row++) {
+        if (testBoard[row][col]) {
+          if (!found) {
+            found = true;
+            height = BOARD_H - row;
+          }
+        } else if (found) {
+          holes++;
+        }
+      }
+      heights.push(height);
+    }
+
+    var aggregateHeight = heights.reduce(function(total, value) { return total + value; }, 0);
+    var bumpiness = 0;
+    for (var i = 0; i < heights.length - 1; i++) bumpiness += Math.abs(heights[i] - heights[i + 1]);
+    return { aggregateHeight: aggregateHeight, holes: holes, bumpiness: bumpiness };
+  }
+
+  function chooseCpuTarget(state) {
+    if (!state.current) return null;
+
+    var best = null;
+    var rotations = getCpuRotations(state.current.name);
+    rotations.forEach(function(cells) {
+      var minX = Math.min.apply(null, cells.map(function(cell) { return cell[0]; }));
+      var maxX = Math.max.apply(null, cells.map(function(cell) { return cell[0]; }));
+      for (var x = -minX; x <= BOARD_W - maxX - 1; x++) {
+        var y = 0;
+        if (collides(state.board, { cells: cells }, x, y)) continue;
+        while (!collides(state.board, { cells: cells }, x, y + 1)) y++;
+
+        var merged = merge(state.board, { cells: cells }, x, y, getPiece(state.current.name).id);
+        var clearedResult = clearLines(merged);
+        var analysis = analyzeCpuBoard(clearedResult.board);
+        var placementScore = clearedResult.cleared * 120
+          - analysis.holes * 45
+          - analysis.aggregateHeight * 5
+          - analysis.bumpiness * 8
+          + Math.random() * 4;
+
+        if (!best || placementScore > best.score) {
+          best = { x: x, cells: cloneCells(cells), score: placementScore };
+        }
+      }
+    });
+
+    return best;
+  }
+
+  function cpuSpawn() {
+    if (!cpuState || cpuState.gameOver) return;
+
+    var name;
+    if (cpuState.nextPieceName) {
+      name = cpuState.nextPieceName;
+    } else {
+      cpuRefillBag(cpuState);
+      name = cpuState.bag.shift();
+    }
+    cpuRefillBag(cpuState);
+    cpuState.nextPieceName = cpuState.bag.shift();
+
+    var piece = getPiece(name);
+    var px = spawnX(name);
+    if (collides(cpuState.board, piece, px, 0)) {
+      cpuState.gameOver = true;
+      publishCpuState();
+      showWinState();
+      return;
+    }
+
+    cpuState.current = { name: name, cells: cloneCells(piece.cells) };
+    cpuState.currentPx = px;
+    cpuState.currentPy = 0;
+    cpuState.gravityAcc = 0;
+    cpuState.moveAcc = 0;
+    cpuState.target = chooseCpuTarget(cpuState);
+    publishCpuState();
+  }
+
+  function cpuLock() {
+    if (!cpuState || !cpuState.current) return;
+
+    cpuState.board = merge(cpuState.board, cpuState.current, cpuState.currentPx, cpuState.currentPy, getPiece(cpuState.current.name).id);
+    var result = clearLines(cpuState.board);
+    cpuState.board = result.board;
+    if (result.cleared > 0) {
+      cpuState.score += (SCORE_TABLE[result.cleared] || 800) * cpuState.level;
+      cpuState.lines += result.cleared;
+      cpuState.level = Math.floor(cpuState.lines / LINES_PER_LEVEL) + 1;
+      var attackLines = attackLinesForClear(result.cleared);
+      if (attackLines) applyGarbage(attackLines);
+      if (gameOver) return;
+    }
+
+    cpuState.current = null;
+    cpuSpawn();
+  }
+
+  function updateCpuOpponent(delta) {
+    if (multiplayerMode !== "cpu" || !cpuState || cpuState.gameOver || gameOver) return;
+    if (gamePhase !== "playing" || paused) return;
+    if (!cpuState.current) cpuSpawn();
+    if (!cpuState.current) return;
+
+    cpuState.moveAcc += delta;
+    if (cpuState.moveAcc >= CPU_MOVE_MS) {
+      cpuState.moveAcc = 0;
+      if (cpuState.target && cpuState.target.cells && !collides(cpuState.board, { cells: cpuState.target.cells }, cpuState.currentPx, cpuState.currentPy)) {
+        cpuState.current.cells = cloneCells(cpuState.target.cells);
+      }
+
+      if (cpuState.target && cpuState.currentPx < cpuState.target.x && !collides(cpuState.board, cpuState.current, cpuState.currentPx + 1, cpuState.currentPy)) {
+        cpuState.currentPx++;
+      } else if (cpuState.target && cpuState.currentPx > cpuState.target.x && !collides(cpuState.board, cpuState.current, cpuState.currentPx - 1, cpuState.currentPy)) {
+        cpuState.currentPx--;
+      } else if (!collides(cpuState.board, cpuState.current, cpuState.currentPx, cpuState.currentPy + 1)) {
+        cpuState.currentPy++;
+      }
+    }
+
+    cpuState.gravityAcc += delta;
+    var cpuGravity = Math.max(120, 850 - (cpuState.level - 1) * 65);
+    if (cpuState.gravityAcc >= cpuGravity) {
+      cpuState.gravityAcc = 0;
+      if (collides(cpuState.board, cpuState.current, cpuState.currentPx, cpuState.currentPy + 1)) cpuLock();
+      else cpuState.currentPy++;
+    }
+
+    publishCpuState();
+  }
+
+  function applyCpuGarbage(linesToAdd) {
+    if (multiplayerMode !== "cpu" || !cpuState || cpuState.gameOver || gameOver) return;
+
+    var count = Math.max(0, Math.min(4, Math.floor(Number(linesToAdd) || 0)));
+    if (!count) return;
+
+    var pushedOutRows = cpuState.board.slice(0, count);
+    var overflow = pushedOutRows.some(function(row) {
+      return row.some(function(cell) { return cell > 0; });
+    });
+
+    cpuState.board = cpuState.board.slice(count);
+    for (var i = 0; i < count; i++) cpuState.board.push(makeGarbageRow());
+
+    if (overflow || (cpuState.current && collides(cpuState.board, cpuState.current, cpuState.currentPx, cpuState.currentPy))) {
+      cpuState.gameOver = true;
+      publishCpuState();
+      showWinState();
+      return;
+    }
+
+    cpuState.target = chooseCpuTarget(cpuState);
+    publishCpuState();
+  }
+
+  function resetCpuOpponent() {
+    cpuState = createCpuState();
+    cpuSpawn();
+    publishCpuState();
+  }
+
+  function startCpuMatch() {
+    if (roomCode) socket.emit("leave-room");
+    if (stateBroadcastInterval) {
+      clearInterval(stateBroadcastInterval);
+      stateBroadcastInterval = null;
+    }
+    multiplayerMode = "cpu";
+    roomCode = null;
+    isHost = true;
+    playerCount = 2;
+    document.body.classList.add("in-game");
+    initPhaser();
+    setScreen("multi_game");
+    setVersusModeLabels();
+    goToReadyStateMulti();
+    startWebcamLazy();
+  }
+
   function startReadyGameFromInput() {
     if (gamePhase !== "ready") return false;
     if (screen === "multi_game") {
+      if (multiplayerMode === "cpu") {
+        startGame();
+        return true;
+      }
       if (!isHost) return false;
       socket.emit("start-play");
       return true;
@@ -758,6 +1052,8 @@
           if (collides(board, current, currentPx, currentPy + 1)) lock();
           else currentPy++;
         }
+
+        updateCpuOpponent(delta);
       }
     }
   };
@@ -770,6 +1066,8 @@
 
   // ===================== SOCKET EVENTS =====================
   socket.on("room-created", function(data) {
+    multiplayerMode = "online";
+    setVersusModeLabels();
     roomCode = normalizeRoomCode(data.roomCode);
     isHost = true;
     playerCount = 1;
@@ -782,6 +1080,8 @@
   });
 
   socket.on("room-joined", function(data) {
+    multiplayerMode = "online";
+    setVersusModeLabels();
     roomCode = normalizeRoomCode(data.roomCode);
     playerCount = data.playerCount || 2;
     updateBrowserInviteUrl(roomCode);
@@ -804,6 +1104,8 @@
   });
 
   socket.on("game-started", function() {
+    multiplayerMode = "online";
+    setVersusModeLabels();
     document.body.classList.add("in-game");
     initPhaser();
     setScreen("multi_game");
@@ -868,6 +1170,8 @@
     if (roomCode) socket.emit("leave-room");
     document.body.classList.remove("in-game");
     gamePhase = "menu";
+    multiplayerMode = "online";
+    setVersusModeLabels();
     setScreen("menu");
 
     // CRITICAL: don’t kill stream tracks when going back to menu.
@@ -876,6 +1180,7 @@
 
     if (stateBroadcastInterval) { clearInterval(stateBroadcastInterval); stateBroadcastInterval = null; }
     roomCode = null; isHost = false; playerCount = 0;
+    cpuState = null;
     opponentState = null;
     hideMatchResult();
   }
@@ -889,6 +1194,8 @@
   }
 
   function goMultiLobby() {
+    multiplayerMode = "online";
+    setVersusModeLabels();
     showScreen("screen-multi-lobby");
     var st = document.getElementById("lobbyStatus");
     if (st) st.textContent = "";
@@ -937,11 +1244,17 @@
 
   function setupLobbyButtons() {
     var btnHost = document.getElementById("btnHost");
+    var btnCpuMode = document.getElementById("btnCpuMode");
     var btnJoin = document.getElementById("btnJoin");
     var btnBack = document.getElementById("btnBackLobby");
     var btnStartMulti = document.getElementById("btnStartMulti");
-    if (btnHost) btnHost.onclick = function() { socket.emit("create-room"); };
+    if (btnHost) btnHost.onclick = function() {
+      multiplayerMode = "online";
+      socket.emit("create-room");
+    };
+    if (btnCpuMode) btnCpuMode.onclick = startCpuMatch;
     if (btnJoin) btnJoin.onclick = function() {
+      multiplayerMode = "online";
       var input = document.getElementById("roomCodeInput");
       var code = input ? normalizeRoomCode(input.value) : "";
       if (code.length >= 4) socket.emit("join-room", code);
@@ -959,6 +1272,10 @@
     var btnPause = document.getElementById("btnPauseMulti");
     var btnExit = document.getElementById("btnExitMulti");
     if (btnStartMulti) btnStartMulti.onclick = function() {
+      if (multiplayerMode === "cpu") {
+        startReadyGameFromInput();
+        return;
+      }
       if (isHost) socket.emit("start-play");
     };
     if (btnPause) btnPause.onclick = function() {

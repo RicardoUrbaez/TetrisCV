@@ -214,6 +214,10 @@
           <span class="btn-icon icon-host" aria-hidden="true"></span>
           <span>HOST GAME</span>
         </button>
+        <button type="button" id="btnCpuMode" class="menu-btn menu-btn-warning">
+          <span class="btn-icon icon-cpu" aria-hidden="true"></span>
+          <span>CPU GAME</span>
+        </button>
         <div class="join-row">
           <input id="roomCodeInput" type="text" placeholder="ROOM CODE" maxlength="6" />
           <button type="button" id="btnJoin" class="menu-btn menu-btn-secondary">
@@ -269,19 +273,19 @@
 
       <div class="versus-stack" aria-hidden="true">
         <strong>VS</strong>
-        <span>ONLINE ROOM</span>
-        <span>2 PLAYERS</span>
-        <span>GARBAGE ON</span>
+        <span id="versusModeLabel">ONLINE ROOM</span>
+        <span id="versusPlayersLabel">2 PLAYERS</span>
+        <span id="versusGarbageLabel">GARBAGE ON</span>
       </div>
 
       <div class="multi-board-wrap opponent-wrap">
         <div class="multi-hud">
-          <span>OPPONENT</span>
+          <span id="opponentNameLabel">OPPONENT</span>
           <span><span id="mpScore2">0</span> / <span id="mpLines2">0</span></span>
         </div>
 
         <div id="webcamPreviewP2" class="webcam-preview-panel multi-preview">
-          <div class="webcam-preview-label">OPPONENT CAMERA</div>
+          <div id="opponentCameraLabel" class="webcam-preview-label">OPPONENT CAMERA</div>
           <div class="webcam-placeholder"></div>
         </div>
       </div>
