@@ -1069,6 +1069,11 @@ body.in-game .game-container canvas {
   word-break: break-word;
 }
 
+.lobby-lan a {
+  color: var(--cyan);
+  overflow-wrap: anywhere;
+}
+
 .lobby-room-code {
   color: var(--text);
   border-color: rgba(255, 196, 41, 0.56);

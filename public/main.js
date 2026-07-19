@@ -563,6 +563,56 @@
   var socket = io();
   var roomCode = null, isHost = false, playerCount = 0;
   var stateBroadcastInterval = null;
+  var pendingInviteRoomCode = getRoomCodeFromUrl();
+
+  function normalizeRoomCode(value) {
+    return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+  }
+
+  function getRoomCodeFromUrl() {
+    try {
+      var params = new URLSearchParams(window.location.search || "");
+      return normalizeRoomCode(params.get("room"));
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function getInviteUrl(code) {
+    var inviteCode = normalizeRoomCode(code);
+    var base = window.location.origin + window.location.pathname;
+    return base.replace(/\/?$/, "/") + "?room=" + encodeURIComponent(inviteCode);
+  }
+
+  function updateBrowserInviteUrl(code) {
+    var inviteCode = normalizeRoomCode(code);
+    if (!inviteCode || !window.history || !window.history.replaceState) return;
+    window.history.replaceState(null, "", getInviteUrl(inviteCode));
+  }
+
+  function showLobbyInvite(code) {
+    var inviteCode = normalizeRoomCode(code);
+    var lanEl = document.getElementById("lobbyLanUrl");
+    var codeEl = document.getElementById("lobbyRoomCode");
+    if (lanEl && inviteCode) {
+      var inviteUrl = getInviteUrl(inviteCode);
+      lanEl.textContent = "";
+      var label = document.createElement("span");
+      label.textContent = "Send player 2 this link: ";
+      var link = document.createElement("a");
+      link.href = inviteUrl;
+      link.textContent = inviteUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      lanEl.appendChild(label);
+      lanEl.appendChild(link);
+      lanEl.classList.remove("hidden");
+    }
+    if (codeEl && inviteCode) {
+      codeEl.textContent = inviteCode;
+      codeEl.classList.remove("hidden");
+    }
+  }
 
   function startReadyGameFromInput() {
     if (gamePhase !== "ready") return false;
@@ -720,22 +770,21 @@
 
   // ===================== SOCKET EVENTS =====================
   socket.on("room-created", function(data) {
-    roomCode = data.roomCode;
+    roomCode = normalizeRoomCode(data.roomCode);
     isHost = true;
     playerCount = 1;
-    var lanEl = document.getElementById("lobbyLanUrl");
-    var codeEl = document.getElementById("lobbyRoomCode");
     var statusEl = document.getElementById("lobbyStatus");
-    if (lanEl) { lanEl.textContent = "On the other device, open: " + (data.lanUrl || "") + " and enter room code:"; lanEl.classList.remove("hidden"); }
-    if (codeEl) { codeEl.textContent = data.roomCode; codeEl.classList.remove("hidden"); }
+    showLobbyInvite(roomCode);
+    updateBrowserInviteUrl(roomCode);
     if (statusEl) statusEl.textContent = "Room created. Waiting for player 2...";
     var btn = document.getElementById("btnStartMulti");
     if (btn) btn.classList.add("hidden");
   });
 
   socket.on("room-joined", function(data) {
-    roomCode = data.roomCode;
+    roomCode = normalizeRoomCode(data.roomCode);
     playerCount = data.playerCount || 2;
+    updateBrowserInviteUrl(roomCode);
     var statusEl = document.getElementById("lobbyStatus");
     if (statusEl) statusEl.textContent = "Joined room. " + playerCount + "/2 players.";
   });
@@ -849,6 +898,11 @@
     if (code) code.classList.add("hidden");
     var btn = document.getElementById("btnStartMulti");
     if (btn) btn.classList.add("hidden");
+    var input = document.getElementById("roomCodeInput");
+    if (input && pendingInviteRoomCode) {
+      input.value = pendingInviteRoomCode;
+      if (st) st.textContent = "Room code loaded. Click JOIN GAME to enter.";
+    }
   }
 
   function setupMenuButtons() {
@@ -889,7 +943,7 @@
     if (btnHost) btnHost.onclick = function() { socket.emit("create-room"); };
     if (btnJoin) btnJoin.onclick = function() {
       var input = document.getElementById("roomCodeInput");
-      var code = input ? input.value.trim().toUpperCase() : "";
+      var code = input ? normalizeRoomCode(input.value) : "";
       if (code.length >= 4) socket.emit("join-room", code);
       else {
         var st = document.getElementById("lobbyStatus");
@@ -1577,7 +1631,8 @@
     setupLobbyButtons();
     setupMultiGameButtons();
 
-    showScreen("screen-menu");
+    if (pendingInviteRoomCode) goMultiLobby();
+    else showScreen("screen-menu");
 
     // Start camera early so it’s ready when you enter game screens
     requestCamera().then(function() {
