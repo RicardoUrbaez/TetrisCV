@@ -203,6 +203,8 @@
   var AUDIO_PREF_VERSION = "music-default-120";
   var audioEnabled = true;
   var audioPendingGesture = false;
+  var loadStartedAt = Date.now();
+  var loaderDone = false;
 
   function getMusicAudio() {
     return document.getElementById("musicLoop");
@@ -243,6 +245,22 @@
       var text = btn.querySelector(".audio-text, .audio-state");
       if (text) text.textContent = label;
     });
+  }
+
+  function finishAppLoading() {
+    if (loaderDone) return;
+    var elapsed = Date.now() - loadStartedAt;
+    var delay = Math.max(0, 720 - elapsed);
+    window.setTimeout(function() {
+      loaderDone = true;
+      document.body.classList.remove("is-loading");
+      var loader = document.getElementById("appLoader");
+      if (loader) {
+        loader.addEventListener("transitionend", function() {
+          loader.classList.add("hidden");
+        }, { once: true });
+      }
+    }, delay);
   }
 
   function playMusic() {
@@ -1111,6 +1129,29 @@
     else if (id === "screen-multi-game") screen = "multi_game";
   }
 
+  function clearPhaserCanvas() {
+    if (!game || !game.scene || !game.scene.scenes || !game.scene.scenes.length) return;
+    var scene = game.scene.scenes[0];
+    if (scene && scene.gfx) scene.gfx.clear();
+  }
+
+  function resetTransientGameUi() {
+    showPause(false);
+    showGameOver(false);
+    hideMatchResult();
+    var singleStart = document.getElementById("startOverlaySingle");
+    if (singleStart) singleStart.classList.add("hidden");
+    var multiStart = document.getElementById("multiReadyOverlay");
+    if (multiStart) multiStart.classList.add("hidden");
+    var multiStartBtn = document.getElementById("btnStartMultiGame");
+    if (multiStartBtn) multiStartBtn.classList.add("hidden");
+    if (showCvStatus._timer) window.clearTimeout(showCvStatus._timer);
+    var cvSingle = document.getElementById("cvStatusSingle");
+    var cvMulti = document.getElementById("cvStatusMulti");
+    if (cvSingle) cvSingle.classList.add("hidden");
+    if (cvMulti) cvMulti.classList.add("hidden");
+  }
+
   function setScreen(s) {
     screen = s;
     var showId = s === "menu" ? "screen-menu"
@@ -1377,6 +1418,8 @@
     gamePhase = "menu";
     multiplayerMode = "online";
     setVersusModeLabels();
+    resetTransientGameUi();
+    clearPhaserCanvas();
     setScreen("menu");
 
     // CRITICAL: don’t kill stream tracks when going back to menu.
@@ -2157,6 +2200,8 @@
 
     if (pendingInviteRoomCode) goMultiLobby();
     else showScreen("screen-menu");
+    clearPhaserCanvas();
+    finishAppLoading();
 
     // Start camera early so it’s ready when you enter game screens
     requestCamera().then(function() {

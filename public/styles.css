@@ -47,6 +47,10 @@ body {
   position: relative;
 }
 
+body:not(.in-game) .game-container {
+  visibility: hidden;
+}
+
 button,
 input {
   font: inherit;
@@ -2288,4 +2292,274 @@ video {
   border-radius: 0 !important;
   box-shadow: none !important;
   transform: none !important;
+}
+
+/* Front-page redesign: responsive command deck plus clean playfield preview. */
+.app-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  gap: 22px;
+  background:
+    linear-gradient(rgba(92, 229, 246, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(92, 229, 246, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 50% 45%, rgba(24, 216, 242, 0.18), transparent 34%),
+    #010409;
+  background-size: 44px 44px, 44px 44px, auto, auto;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 260ms ease, visibility 260ms ease;
+  pointer-events: none;
+}
+
+body.is-loading .app-loader {
+  opacity: 1;
+  visibility: visible;
+}
+
+.loader-board {
+  display: grid;
+  grid-template-columns: repeat(4, clamp(24px, 4vw, 42px));
+  grid-auto-rows: clamp(24px, 4vw, 42px);
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid rgba(92, 229, 246, 0.42);
+  background: rgba(2, 7, 12, 0.78);
+  box-shadow: 0 0 34px rgba(24, 216, 242, 0.2);
+}
+
+.loader-cell {
+  display: block;
+  border-radius: 4px;
+  animation: loaderDrop 900ms cubic-bezier(0.2, 0.7, 0.25, 1) infinite;
+}
+
+.loader-cell:nth-child(2) { animation-delay: 80ms; }
+.loader-cell:nth-child(3) { animation-delay: 160ms; }
+.loader-cell:nth-child(4) { animation-delay: 240ms; }
+.loader-cell:nth-child(5) { animation-delay: 320ms; }
+.loader-cell:nth-child(6) { animation-delay: 400ms; }
+.loader-cell:nth-child(7) { animation-delay: 480ms; }
+.loader-cell:nth-child(8) { animation-delay: 560ms; }
+
+.loader-cyan { background: var(--primary); box-shadow: 0 0 18px rgba(24, 216, 242, 0.74); }
+.loader-green { background: var(--success); box-shadow: 0 0 18px rgba(96, 239, 93, 0.68); }
+.loader-pink { background: var(--accent); box-shadow: 0 0 18px rgba(255, 79, 163, 0.68); }
+.loader-yellow { background: var(--warning); box-shadow: 0 0 18px rgba(255, 197, 45, 0.68); }
+
+.loader-copy {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.loader-copy strong {
+  color: var(--text);
+  font-size: clamp(22px, 5vw, 44px);
+  letter-spacing: 0.08em;
+}
+
+.loader-copy span {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  animation: loadingTextPulse 900ms ease-in-out infinite;
+}
+
+#screen-menu.screen-menu {
+  isolation: isolate;
+}
+
+#screen-menu .menu-stage {
+  display: grid !important;
+  grid-template-columns:
+    minmax(20px, 1fr)
+    minmax(300px, 600px)
+    minmax(240px, 500px)
+    minmax(20px, 1fr) !important;
+  grid-template-rows: clamp(66px, 10dvh, 94px) minmax(0, 1fr) clamp(58px, 9dvh, 82px) !important;
+  gap: clamp(18px, 4vw, 54px) !important;
+  align-items: center;
+}
+
+#screen-menu .menu-stage::before {
+  background:
+    radial-gradient(circle at 50% 48%, transparent 0 34%, rgba(0, 0, 0, 0.18) 64%, rgba(0, 0, 0, 0.48) 100%),
+    linear-gradient(90deg, rgba(0, 3, 8, 0.3), rgba(0, 3, 8, 0.02), rgba(0, 3, 8, 0.3));
+}
+
+#screen-menu .menu-copy {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  align-self: center;
+  gap: clamp(18px, 3.2dvh, 34px);
+  width: 100%;
+  transform: none;
+}
+
+#screen-menu .menu-title {
+  gap: clamp(2px, 0.8dvh, 8px);
+}
+
+#screen-menu .menu-title span:first-child {
+  color: #f8fcff;
+  font-size: clamp(54px, min(8.4vw, 13dvh), 124px);
+  letter-spacing: 0.035em;
+}
+
+#screen-menu .menu-title span:last-child {
+  color: var(--primary);
+  font-size: clamp(34px, min(5vw, 8dvh), 76px);
+  letter-spacing: 0.12em;
+}
+
+#screen-menu .menu-box {
+  position: static;
+  width: min(100%, 560px);
+  gap: clamp(10px, 1.8dvh, 16px);
+}
+
+#screen-menu .menu-btn {
+  min-height: clamp(52px, 8dvh, 76px);
+  padding: clamp(10px, 1.6dvh, 16px) clamp(14px, 2vw, 22px);
+  font-size: clamp(13px, min(1.5vw, 2.4dvh), 20px);
+  letter-spacing: 0.1em;
+  background: rgba(2, 7, 12, 0.82);
+}
+
+#screen-menu .menu-settings-row {
+  min-height: clamp(44px, 6.5dvh, 58px);
+}
+
+#screen-menu .menu-playfield {
+  grid-column: 3 !important;
+  grid-row: 2 !important;
+  width: min(34vw, calc((100dvh - 170px) * 0.54), 430px);
+  min-width: 220px;
+  align-self: center;
+  justify-self: center;
+  opacity: 0.96;
+}
+
+#screen-menu .menu-playfield::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(255, 197, 45, 0.68) 0 5%, transparent 5% 100%),
+    linear-gradient(to top, transparent 0 10%, rgba(255, 83, 103, 0.58) 10% 15%, transparent 15% 100%),
+    linear-gradient(to top, transparent 0 15%, rgba(96, 239, 93, 0.52) 15% 20%, transparent 20% 100%);
+  clip-path: polygon(0 100%, 100% 100%, 100% 78%, 88% 78%, 88% 84%, 76% 84%, 76% 90%, 64% 90%, 64% 84%, 52% 84%, 52% 90%, 40% 90%, 40% 84%, 28% 84%, 28% 90%, 16% 90%, 16% 84%, 0 84%);
+  opacity: 0.72;
+}
+
+#screen-menu .menu-piece-rail {
+  top: 18dvh;
+  bottom: 18dvh;
+  right: clamp(18px, 3.2vw, 54px);
+  opacity: 0.82;
+}
+
+#screen-menu .menu-status-row {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+@keyframes loaderDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.92);
+  }
+
+  28%,
+  72% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0.68;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+@keyframes loadingTextPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 860px) {
+  #screen-menu .menu-stage {
+    grid-template-columns: minmax(16px, 1fr) minmax(280px, 520px) minmax(16px, 1fr) !important;
+    grid-template-rows: clamp(60px, 9dvh, 82px) minmax(0, 1fr) clamp(54px, 8dvh, 74px) !important;
+    gap: 0 !important;
+  }
+
+  #screen-menu .menu-copy {
+    grid-column: 2 !important;
+    width: 100%;
+    align-self: start;
+    padding-top: clamp(74px, 13dvh, 118px);
+  }
+
+  #screen-menu .menu-title span:first-child {
+    font-size: clamp(44px, 15vw, 86px);
+  }
+
+  #screen-menu .menu-title span:last-child {
+    font-size: clamp(28px, 9.6vw, 54px);
+  }
+
+  #screen-menu .menu-playfield {
+    position: fixed;
+    right: clamp(12px, 5vw, 28px);
+    bottom: clamp(68px, 12dvh, 96px);
+    width: min(30vw, 136px);
+    min-width: 94px;
+    opacity: 0.38;
+  }
+
+  #screen-menu .menu-btn {
+    min-height: clamp(48px, 7.2dvh, 58px);
+    font-size: clamp(11px, 3.2vw, 14px);
+  }
+}
+
+@media (max-width: 430px) {
+  #screen-menu .menu-copy {
+    padding-top: clamp(76px, 12dvh, 98px);
+  }
+
+  #screen-menu .menu-box {
+    width: 100%;
+  }
+
+  #screen-menu .menu-status-row {
+    justify-content: space-between;
+  }
+
+  #screen-menu .status-pill {
+    max-width: calc(50vw - 20px);
+    white-space: normal;
+  }
+
+  #screen-menu .menu-playfield {
+    width: min(22vw, 82px);
+    min-width: 72px;
+    right: 18px;
+    bottom: 76px;
+    opacity: 0.3;
+  }
 }
