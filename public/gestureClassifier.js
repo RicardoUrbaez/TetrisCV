@@ -6,13 +6,53 @@
     status: "not-trained",
     labels: [],
     model: null,
+    oneClassModel: null,
     lastPrediction: null,
+
+    buildOneClassModel: function (label, samples, featureCount) {
+      var centroid = Array(featureCount).fill(0);
+      var validSamples = samples.filter(function (sample) {
+        return sample && sample.label === label && sample.features && sample.features.length === featureCount;
+      });
+
+      validSamples.forEach(function (sample) {
+        for (var i = 0; i < featureCount; i++) centroid[i] += sample.features[i];
+      });
+      for (var c = 0; c < featureCount; c++) centroid[c] /= Math.max(validSamples.length, 1);
+
+      var distances = validSamples.map(function (sample) {
+        var sumSq = 0;
+        for (var i = 0; i < featureCount; i++) {
+          var diff = sample.features[i] - centroid[i];
+          sumSq += diff * diff;
+        }
+        return Math.sqrt(sumSq / featureCount);
+      });
+
+      var mean = distances.reduce(function (sum, value) { return sum + value; }, 0) / Math.max(distances.length, 1);
+      var variance = distances.reduce(function (sum, value) {
+        var diff = value - mean;
+        return sum + diff * diff;
+      }, 0) / Math.max(distances.length, 1);
+      var stdDev = Math.sqrt(variance);
+
+      return {
+        label: label,
+        centroid: centroid,
+        featureCount: featureCount,
+        threshold: Math.max(mean + stdDev * 2.75, mean * 1.65, 0.32)
+      };
+    },
 
     train: function () {
       var samplesData = window.TETRIS_GESTURE_SAMPLES || {};
       var samples = samplesData.samples || [];
-      if (!window.tf || samples.length < 20) {
-        this.status = samples.length ? "tfjs-missing" : "no-samples";
+      var featureCount = samplesData.featureCount || 63;
+      this.ready = false;
+      this.model = null;
+      this.oneClassModel = null;
+      if (samples.length < 20) {
+        this.status = samples.length ? "not-enough-samples" : "no-samples";
         return Promise.resolve(false);
       }
 
@@ -21,8 +61,20 @@
         if (sample && sample.label && !labelMap[sample.label]) labelMap[sample.label] = true;
       });
       this.labels = Object.keys(labelMap).sort();
+      if (this.labels.length < 1) {
+        this.status = "no-labels";
+        return Promise.resolve(false);
+      }
+
       if (this.labels.length < 2) {
-        this.status = "need-more-classes";
+        this.oneClassModel = this.buildOneClassModel(this.labels[0], samples, featureCount);
+        this.ready = true;
+        this.status = "ready-single-class";
+        return Promise.resolve(true);
+      }
+
+      if (!window.tf) {
+        this.status = "tfjs-missing";
         return Promise.resolve(false);
       }
 
@@ -40,7 +92,7 @@
       var ys = tf.tensor2d(ysData);
 
       var model = tf.sequential();
-      model.add(tf.layers.dense({ units: 32, activation: "relu", inputShape: [samplesData.featureCount || 63] }));
+      model.add(tf.layers.dense({ units: 32, activation: "relu", inputShape: [featureCount] }));
       model.add(tf.layers.dropout({ rate: 0.15 }));
       model.add(tf.layers.dense({ units: this.labels.length, activation: "softmax" }));
       model.compile({
@@ -72,7 +124,29 @@
     },
 
     predict: function (features) {
-      if (!this.ready || !this.model || !features) return null;
+      if (!this.ready || !features) return null;
+
+      if (this.oneClassModel) {
+        if (features.length !== this.oneClassModel.featureCount) return null;
+        var sumSq = 0;
+        for (var c = 0; c < this.oneClassModel.featureCount; c++) {
+          var diff = features[c] - this.oneClassModel.centroid[c];
+          sumSq += diff * diff;
+        }
+        var distance = Math.sqrt(sumSq / this.oneClassModel.featureCount);
+        var threshold = this.oneClassModel.threshold;
+        var confidence = distance <= threshold
+          ? 0.8 + (1 - (distance / threshold)) * 0.2
+          : Math.max(0, 0.8 * (threshold / Math.max(distance, 0.001)));
+
+        this.lastPrediction = {
+          label: distance <= threshold ? this.oneClassModel.label : "unknown",
+          confidence: confidence
+        };
+        return this.lastPrediction;
+      }
+
+      if (!this.model) return null;
       var output = tf.tidy(function () {
         var input = tf.tensor2d([features]);
         return classifier.model.predict(input).dataSync();

@@ -10,12 +10,15 @@
 
     movement: {
       invertLeftRight: true,
-      emaAlpha: 0.28,
-      leftEnter: 0.45,
-      leftExit: 0.52,
-      rightEnter: 0.55,
-      rightExit: 0.48,
-      repeatMs: 160
+      emaAlpha: 0.22,
+      autoCalibrate: true,
+      centerSampleCount: 10,
+      calibratedSensitivity: 1.45,
+      leftEnter: 0.40,
+      leftExit: 0.48,
+      rightEnter: 0.60,
+      rightExit: 0.52,
+      repeatMs: 135
     },
 
     rotation: {

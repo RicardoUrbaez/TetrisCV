@@ -62,6 +62,10 @@
     return typeof value === "boolean" ? value : fallback;
   }
 
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
   var EMA_ALPHA = configNumber(MOVEMENT_CONFIG, "emaAlpha", 0.28);
 
   /**
@@ -79,6 +83,9 @@
   var RIGHT_ENTER = configNumber(MOVEMENT_CONFIG, "rightEnter", 0.55);
   var RIGHT_EXIT = configNumber(MOVEMENT_CONFIG, "rightExit", 0.48);
   var MOVE_REPEAT_MS = configNumber(MOVEMENT_CONFIG, "repeatMs", 160);
+  var AUTO_CALIBRATE_MOVEMENT = configBool(MOVEMENT_CONFIG, "autoCalibrate", true);
+  var MOVEMENT_CENTER_SAMPLE_COUNT = Math.max(1, Math.round(configNumber(MOVEMENT_CONFIG, "centerSampleCount", 10)));
+  var MOVEMENT_SENSITIVITY = configNumber(MOVEMENT_CONFIG, "calibratedSensitivity", 1.45);
 
   // Wave down -> soft drop boost
   var DROP_DY_THRESHOLD = configNumber(SOFTDROP_CONFIG, "waveDownThreshold", 0.10);
@@ -616,19 +623,7 @@
   }
 
   function showCvStatus(message) {
-    var id = screen === "multi_game" ? "cvStatusMulti" : "cvStatusSingle";
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.textContent = message || "";
-    if (message) {
-      el.classList.remove("hidden");
-      window.clearTimeout(showCvStatus._timer);
-      showCvStatus._timer = window.setTimeout(function() {
-        el.classList.add("hidden");
-      }, 1600);
-    } else {
-      el.classList.add("hidden");
-    }
+    return;
   }
 
   function setPauseLabel() {
@@ -749,7 +744,8 @@
   var multiplayerMode = "online"; // online | cpu
   var cpuState = null;
   var CPU_MOVE_MS = 120;
-  var pendingInviteRoomCode = getRoomCodeFromUrl();
+  var pageLoadedFromRefresh = wasPageReloaded();
+  var pendingInviteRoomCode = pageLoadedFromRefresh ? "" : getRoomCodeFromUrl();
 
   function normalizeRoomCode(value) {
     return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
@@ -764,6 +760,20 @@
     }
   }
 
+  function wasPageReloaded() {
+    try {
+      var entries = window.performance && window.performance.getEntriesByType
+        ? window.performance.getEntriesByType("navigation")
+        : [];
+      if (entries && entries.length && entries[0].type === "reload") return true;
+      return window.performance
+        && window.performance.navigation
+        && window.performance.navigation.type === 1;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function getInviteUrl(code) {
     var inviteCode = normalizeRoomCode(code);
     var base = window.location.origin + window.location.pathname;
@@ -771,9 +781,10 @@
   }
 
   function updateBrowserInviteUrl(code) {
-    var inviteCode = normalizeRoomCode(code);
-    if (!inviteCode || !window.history || !window.history.replaceState) return;
-    window.history.replaceState(null, "", getInviteUrl(inviteCode));
+    if (!normalizeRoomCode(code) || !window.history || !window.history.replaceState) return;
+    if (getRoomCodeFromUrl()) {
+      window.history.replaceState(null, "", window.location.origin + window.location.pathname);
+    }
   }
 
   function showLobbyInvite(code) {
@@ -829,8 +840,14 @@
     if (el) el.textContent = value;
   }
 
+  function setCpuOpponentPortrait(show) {
+    var panel = document.getElementById("webcamPreviewP2");
+    if (panel) panel.classList.toggle("cpu-opponent-preview", !!show);
+  }
+
   function setVersusModeLabels() {
     if (multiplayerMode === "cpu") {
+      setCpuOpponentPortrait(true);
       setText("versusModeLabel", "CPU MATCH");
       setText("versusPlayersLabel", "1 PLAYER + CPU");
       setText("versusGarbageLabel", "GARBAGE ON");
@@ -841,6 +858,7 @@
       return;
     }
 
+    setCpuOpponentPortrait(false);
     setText("versusModeLabel", "ONLINE ROOM");
     setText("versusPlayersLabel", "2 PLAYERS");
     setText("versusGarbageLabel", "GARBAGE ON");
@@ -1170,7 +1188,7 @@
     if (!el) return null;
     var rect = el.getBoundingClientRect();
     if (!rect.width || !rect.height) return null;
-    var block = Math.floor(Math.min(rect.width / BOARD_W, rect.height / BOARD_H));
+    var block = Math.min(rect.width / BOARD_W, rect.height / BOARD_H);
     block = Math.max(12, block);
     var boardW = block * BOARD_W;
     var boardH = block * BOARD_H;
@@ -1659,10 +1677,7 @@
   }
 
   function updateCvStatus(text) {
-    var el = screen === "multi_game" ? document.getElementById("cvStatusMulti") : document.getElementById("cvStatusSingle");
-    if (!el) return;
-    el.textContent = text;
-    el.classList.remove("hidden");
+    return;
   }
 
   function tryCameraConstraints(constraintsList) {
@@ -1686,6 +1701,12 @@
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       cameraStatus = "blocked";
+      webcamOk = false;
+      updateCameraStatusUI();
+      return Promise.resolve(false);
+    }
+
+    if (cameraStatus === "blocked") {
       webcamOk = false;
       updateCameraStatusUI();
       return Promise.resolve(false);
@@ -1812,6 +1833,8 @@
 
   // ===================== GESTURE STATE =====================
   var emaX = 0.5, emaY = 0.5, emaSet = false;
+  var movementCenterSamples = [];
+  var calibratedMovementCenterX = null;
   var currentZone = "NONE";
   var lastMoveMs = 0;
 
@@ -1825,7 +1848,7 @@
   var softDropHeldUntil = 0;
   var lastSoftDropAt = 0;
 
-  var vSignPrev = false, vSignStart = 0, pauseCooldownUntil = 0;
+  var vSignPrev = false, vSignStart = 0, vSignArmed = true, pauseCooldownUntil = 0;
   var clapHistory = [];
   var clapArmed = true;
   var clapCooldownUntil = 0;
@@ -1881,6 +1904,8 @@
 
   function resetGestureState() {
     emaSet = false;
+    movementCenterSamples.length = 0;
+    calibratedMovementCenterX = null;
     currentZone = "NONE";
     lastMoveMs = 0;
 
@@ -1894,7 +1919,7 @@
     softDropHeldUntil = 0;
     lastSoftDropAt = 0;
 
-    vSignPrev = false; vSignStart = 0; pauseCooldownUntil = 0;
+    vSignPrev = false; vSignStart = 0; vSignArmed = true; pauseCooldownUntil = 0;
     resetClapState();
   }
 
@@ -1910,6 +1935,8 @@
     }
 
     if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+      movementCenterSamples.length = 0;
+      calibratedMovementCenterX = null;
       currentZone = "NONE";
       dropHistory.length = 0;
       softDropHeld = false;
@@ -1939,13 +1966,29 @@
     // (we invert the X input once)
     if (INVERT_LEFT_RIGHT) rawX = 1 - rawX;
 
-    if (!emaSet) { emaX = rawX; emaY = rawY; emaSet = true; }
+    var movementReady = true;
+    var movementX = rawX;
+    if (AUTO_CALIBRATE_MOVEMENT) {
+      if (movementCenterSamples.length < MOVEMENT_CENTER_SAMPLE_COUNT) {
+        movementCenterSamples.push(rawX);
+        calibratedMovementCenterX = movementCenterSamples.reduce(function (sum, value) {
+          return sum + value;
+        }, 0) / movementCenterSamples.length;
+        movementReady = false;
+      }
+
+      if (calibratedMovementCenterX != null) {
+        movementX = clamp(0.5 + (rawX - calibratedMovementCenterX) * MOVEMENT_SENSITIVITY, 0, 1);
+      }
+    }
+
+    if (!emaSet) { emaX = movementX; emaY = rawY; emaSet = true; }
     else {
-      emaX = EMA_ALPHA * rawX + (1 - EMA_ALPHA) * emaX;
+      emaX = EMA_ALPHA * movementX + (1 - EMA_ALPHA) * emaX;
       emaY = EMA_ALPHA * rawY + (1 - EMA_ALPHA) * emaY;
     }
 
-    var x = emaX;
+    var x = movementReady ? emaX : 0.5;
 
     // --- 2-zone position move w/ hysteresis ---
     if (currentZone === "LEFT") {
@@ -2068,14 +2111,18 @@
     );
 
     // --- optional gestures ---
-    if (vSign) {
+    if (vSign && (gamePhase === "playing" || gamePhase === "paused") && !gameOver) {
       if (!vSignPrev) vSignStart = now;
-      if (now - vSignStart >= V_SIGN_HOLD_MS && now > pauseCooldownUntil) {
+      if (vSignArmed && now - vSignStart >= V_SIGN_HOLD_MS && now > pauseCooldownUntil) {
         togglePause();
+        vSignArmed = false;
         pauseCooldownUntil = now + PAUSE_DEBOUNCE_MS;
         vSignStart = 0;
       }
-    } else vSignStart = 0;
+    } else {
+      vSignStart = 0;
+      vSignArmed = true;
+    }
     vSignPrev = vSign;
   }
 
@@ -2172,7 +2219,7 @@
     function tryStart() {
       ensureCVRunning(vid).then(function(ok) {
         console.log("[CV] ensureCVRunning ->", ok, "readyState:", vid.readyState, "hasStream:", !!vid.srcObject);
-        if (!cvManager.isRunning) setTimeout(tryStart, 250);
+        if (!cvManager.isRunning && cameraStatus !== "blocked") setTimeout(tryStart, 250);
       });
     }
 
@@ -2198,6 +2245,7 @@
     setupMultiGameButtons();
     setupMusicControls();
 
+    if (pageLoadedFromRefresh) updateBrowserInviteUrl(getRoomCodeFromUrl());
     if (pendingInviteRoomCode) goMultiLobby();
     else showScreen("screen-menu");
     clearPhaserCanvas();
