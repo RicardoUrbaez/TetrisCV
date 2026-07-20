@@ -3700,7 +3700,7 @@ body:not(.in-game) .audio-corner {
     0 0 28px rgba(24, 216, 242, 0.48),
     inset 0 0 24px rgba(24, 216, 242, 0.12);
   overflow: hidden;
-  transform: translate(-18px, -10px);
+  transform: translate(clamp(80px, 5.4vw, 118px), -10px);
 }
 
 #screen-menu .menu-playfield::before,
