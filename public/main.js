@@ -197,6 +197,7 @@
   var MENU_PREVIEW_W = 10;
   var MENU_PREVIEW_H = 16;
   var menuPreviewRunning = false;
+  var menuPreviewRafId = null;
   var menuPreviewLastDrop = 0;
   var menuPreviewDropMs = 520;
   var menuPreviewBoard = null;
@@ -367,8 +368,19 @@
     }
   }
 
+  function markMenuPreviewActive(active) {
+    var canvas = document.getElementById("menuPreviewCanvas");
+    if (canvas) canvas.dataset.animationActive = active ? "true" : "false";
+  }
+
   function tickMenuPreview(now) {
     if (!menuPreviewRunning) return;
+    if (screen !== "menu" || document.hidden) {
+      menuPreviewRunning = false;
+      menuPreviewRafId = null;
+      markMenuPreviewActive(false);
+      return;
+    }
     if (!menuPreviewBoard) {
       menuPreviewBoard = makeMenuPreviewBoard();
       spawnMenuPreviewPiece();
@@ -385,16 +397,28 @@
     }
 
     drawMenuPreviewCanvas(now);
-    window.requestAnimationFrame(tickMenuPreview);
+    menuPreviewRafId = window.requestAnimationFrame(tickMenuPreview);
   }
 
   function startMenuPreview() {
-    if (menuPreviewRunning) return;
+    if (menuPreviewRunning || document.hidden || !loaderDone) {
+      markMenuPreviewActive(false);
+      return;
+    }
     menuPreviewRunning = true;
     menuPreviewBoard = makeMenuPreviewBoard();
     menuPreviewPieceIndex = 0;
     spawnMenuPreviewPiece();
-    window.requestAnimationFrame(tickMenuPreview);
+    menuPreviewLastDrop = 0;
+    markMenuPreviewActive(true);
+    menuPreviewRafId = window.requestAnimationFrame(tickMenuPreview);
+  }
+
+  function stopMenuPreview() {
+    menuPreviewRunning = false;
+    if (menuPreviewRafId) window.cancelAnimationFrame(menuPreviewRafId);
+    menuPreviewRafId = null;
+    markMenuPreviewActive(false);
   }
 
   // ===================== GAME STATE =====================
@@ -465,6 +489,8 @@
     window.setTimeout(function() {
       loaderDone = true;
       document.body.classList.remove("is-loading");
+      document.body.classList.add("app-loaded");
+      if (screen === "menu") startMenuPreview();
       var loader = document.getElementById("appLoader");
       if (loader) {
         loader.addEventListener("transitionend", function() {
@@ -1342,13 +1368,24 @@
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(function(s) {
       s.classList.add("hidden");
+      s.classList.remove("screen-entering");
     });
     var el = document.getElementById(id);
-    if (el) el.classList.remove("hidden");
+    if (el) {
+      el.classList.remove("hidden");
+      if (loaderDone) {
+        window.requestAnimationFrame(function() {
+          el.classList.add("screen-entering");
+        });
+      }
+    }
     if (id === "screen-menu") screen = "menu";
     else if (id === "screen-single") screen = "single";
     else if (id === "screen-multi-lobby") screen = "multi_lobby";
     else if (id === "screen-multi-game") screen = "multi_game";
+    document.body.dataset.screen = screen;
+    if (id === "screen-menu") startMenuPreview();
+    else stopMenuPreview();
   }
 
   function clearPhaserCanvas() {
@@ -2448,12 +2485,15 @@
     setupLobbyButtons();
     setupMultiGameButtons();
     setupMusicControls();
+    document.addEventListener("visibilitychange", function() {
+      if (document.hidden) stopMenuPreview();
+      else if (screen === "menu") startMenuPreview();
+    });
 
     if (pageLoadedFromRefresh) updateBrowserInviteUrl(getRoomCodeFromUrl());
     if (pendingInviteRoomCode) goMultiLobby();
     else showScreen("screen-menu");
     clearPhaserCanvas();
-    startMenuPreview();
     finishAppLoading();
 
     // Start camera early so it’s ready when you enter game screens

@@ -2929,6 +2929,382 @@ body:not(.in-game) .audio-corner {
   }
 }
 
+/* Polished loading and app-wide motion pass. */
+.hidden,
+.screen.hidden,
+.hidden *,
+.screen.hidden *,
+.hidden *::before,
+.hidden *::after,
+.screen.hidden *::before,
+.screen.hidden *::after {
+  animation-play-state: paused !important;
+}
+
+.app-loader.hidden,
+.app-loader.hidden::before,
+.app-loader.hidden::after,
+.app-loader.hidden * {
+  animation: none !important;
+}
+
+#screen-menu .menu-playfield span,
+#screen-menu .menu-piece-rail span {
+  animation: none !important;
+}
+
+.app-loader {
+  align-content: center;
+  justify-items: center;
+  grid-template-rows: auto auto auto auto;
+  gap: clamp(12px, 2.8dvh, 24px);
+  overflow: hidden;
+}
+
+.app-loader::before,
+.app-loader::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.app-loader::before {
+  inset: 10%;
+  border: 1px solid rgba(24, 216, 242, 0.18);
+  background:
+    linear-gradient(90deg, transparent, rgba(24, 216, 242, 0.18), transparent) 0 16% / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent, rgba(255, 79, 163, 0.16), transparent) 0 76% / 100% 1px no-repeat;
+  box-shadow:
+    inset 0 0 42px rgba(24, 216, 242, 0.08),
+    0 0 42px rgba(24, 216, 242, 0.08);
+  animation: loaderFrameScan 2200ms ease-in-out infinite;
+}
+
+.app-loader::after {
+  inset: 0;
+  background:
+    radial-gradient(circle at 28% 50%, rgba(96, 239, 93, 0.16), transparent 18%),
+    radial-gradient(circle at 68% 42%, rgba(255, 79, 163, 0.14), transparent 20%),
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 5px);
+  mix-blend-mode: screen;
+  opacity: 0.72;
+}
+
+.loader-logo {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(4px, 0.8vw, 10px);
+  width: min(720px, calc(100vw - 34px));
+  font-family: "Arial Black", Impact, var(--font);
+  font-size: clamp(58px, min(12vw, 15dvh), 132px);
+  font-weight: 950;
+  line-height: 0.82;
+  letter-spacing: 0;
+  transform: scaleX(1.08);
+}
+
+.loader-letter {
+  position: relative;
+  display: inline-block;
+  color: var(--primary);
+  -webkit-text-fill-color: rgba(0, 11, 18, 0.22);
+  -webkit-text-stroke: clamp(1.4px, 0.32vw, 3px) currentColor;
+  text-shadow:
+    0 0 4px currentColor,
+    0 0 14px currentColor,
+    0 0 32px currentColor;
+  transform-origin: 50% 100%;
+  animation:
+    loaderLetterBoot 900ms cubic-bezier(0.14, 0.9, 0.18, 1) both,
+    loaderLetterHum 1800ms ease-in-out infinite;
+  will-change: transform, opacity, filter;
+}
+
+.loader-letter::after {
+  content: "";
+  position: absolute;
+  inset: 8% 7%;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 9px, currentColor 9px 10px, transparent 10px 20px),
+    repeating-linear-gradient(0deg, transparent 0 7px, currentColor 7px 8px, transparent 8px 16px);
+  opacity: 0.24;
+}
+
+.loader-letter:nth-child(2) { animation-delay: 80ms, 0ms; }
+.loader-letter:nth-child(3) { animation-delay: 160ms, 0ms; }
+.loader-letter:nth-child(4) { animation-delay: 240ms, 0ms; }
+.loader-letter:nth-child(5) { animation-delay: 320ms, 0ms; }
+.loader-letter:nth-child(6) { animation-delay: 400ms, 0ms; }
+
+.loader-wordmark {
+  position: relative;
+  z-index: 2;
+  color: transparent;
+  font-family: var(--mono);
+  font-size: clamp(24px, min(5vw, 7dvh), 58px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  -webkit-text-stroke: 1px var(--primary);
+  text-shadow:
+    0 0 8px rgba(24, 216, 242, 0.88),
+    0 0 22px rgba(24, 216, 242, 0.52);
+  animation: loaderHandsRise 860ms cubic-bezier(0.18, 0.86, 0.18, 1) 420ms both;
+}
+
+.loader-board {
+  position: relative;
+  z-index: 2;
+  grid-template-columns: repeat(5, clamp(14px, 3vw, 30px));
+  grid-auto-rows: clamp(14px, 3vw, 30px);
+  gap: 4px;
+  border-radius: 4px;
+  animation: loaderBoardFloat 1800ms ease-in-out infinite;
+}
+
+.loader-cell {
+  animation: loaderCellLock 1250ms cubic-bezier(0.2, 0.7, 0.25, 1) infinite;
+  will-change: transform, opacity;
+}
+
+.loader-cell:nth-child(9) { animation-delay: 640ms; }
+.loader-cell:nth-child(10) { animation-delay: 720ms; }
+
+.loader-blue { background: #16dfff; box-shadow: 0 0 18px rgba(22, 223, 255, 0.7); }
+.loader-purple { background: #bd54ff; box-shadow: 0 0 18px rgba(189, 84, 255, 0.68); }
+
+.loader-progress {
+  position: relative;
+  z-index: 2;
+  width: min(360px, calc(100vw - 52px));
+  height: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(24, 216, 242, 0.38);
+  border-radius: 999px;
+  background: rgba(1, 6, 11, 0.86);
+  box-shadow: 0 0 18px rgba(24, 216, 242, 0.2);
+}
+
+.loader-progress span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--success), var(--primary), var(--accent));
+  box-shadow: 0 0 18px rgba(24, 216, 242, 0.88);
+  animation: loaderProgressSweep 1150ms cubic-bezier(0.22, 0.74, 0.22, 1) infinite;
+  will-change: transform;
+}
+
+.loader-copy strong {
+  font-size: clamp(12px, 2vw, 16px);
+  letter-spacing: 0.16em;
+}
+
+body.app-loaded #screen-menu .menu-title .tetris-word .tetris-letter {
+  animation:
+    homeLetterIgnite 720ms cubic-bezier(0.18, 0.84, 0.18, 1) both,
+    homeLetterBreathe 2600ms ease-in-out infinite;
+  will-change: transform, opacity, filter;
+}
+
+body.app-loaded #screen-menu .menu-title .tetris-word .tetris-letter:nth-child(2) { animation-delay: 70ms, 0ms; }
+body.app-loaded #screen-menu .menu-title .tetris-word .tetris-letter:nth-child(3) { animation-delay: 140ms, 0ms; }
+body.app-loaded #screen-menu .menu-title .tetris-word .tetris-letter:nth-child(4) { animation-delay: 210ms, 0ms; }
+body.app-loaded #screen-menu .menu-title .tetris-word .tetris-letter:nth-child(5) { animation-delay: 280ms, 0ms; }
+body.app-loaded #screen-menu .menu-title .tetris-word .tetris-letter:nth-child(6) { animation-delay: 350ms, 0ms; }
+
+body.app-loaded #screen-menu .menu-title .hands-word {
+  animation: handsWordReveal 760ms cubic-bezier(0.18, 0.84, 0.18, 1) 260ms both;
+}
+
+.screen:not(.hidden).screen-entering {
+  animation: screenSurfaceIn 520ms cubic-bezier(0.18, 0.84, 0.18, 1) both;
+}
+
+.screen:not(.hidden).screen-entering .screen-label,
+.screen:not(.hidden).screen-entering .top-rail,
+.screen:not(.hidden).screen-entering .cockpit-panel,
+.screen:not(.hidden).screen-entering .lobby-shell,
+.screen:not(.hidden).screen-entering .multi-hud,
+.screen:not(.hidden).screen-entering .next-panel,
+.screen:not(.hidden).screen-entering .webcam-preview-panel,
+.screen:not(.hidden).screen-entering .versus-stack {
+  animation: panelBootIn 640ms cubic-bezier(0.18, 0.84, 0.18, 1) both;
+}
+
+.screen:not(.hidden).screen-entering .menu-btn {
+  animation: menuButtonBoot 520ms cubic-bezier(0.18, 0.84, 0.18, 1) both;
+}
+
+.screen:not(.hidden).screen-entering .menu-btn:nth-child(2) { animation-delay: 80ms; }
+.screen:not(.hidden).screen-entering .menu-btn:nth-child(3) { animation-delay: 150ms; }
+.screen:not(.hidden).screen-entering .menu-btn:nth-child(4) { animation-delay: 220ms; }
+
+@keyframes loaderLetterBoot {
+  0% {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translate3d(0, -48px, 0) scaleY(1.35);
+  }
+  58% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 6px, 0) scaleY(0.88);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scaleY(1);
+  }
+}
+
+@keyframes loaderLetterHum {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.28); }
+}
+
+@keyframes loaderHandsRise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes loaderFrameScan {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scaleX(0.98);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes loaderBoardFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -5px, 0); }
+}
+
+@keyframes loaderCellLock {
+  0% {
+    opacity: 0.24;
+    transform: translate3d(0, -16px, 0) scale(0.82);
+  }
+  42%, 82% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0.5;
+    transform: translate3d(0, 10px, 0) scale(0.92);
+  }
+}
+
+@keyframes loaderProgressSweep {
+  0% { transform: translate3d(-110%, 0, 0); }
+  100% { transform: translate3d(250%, 0, 0); }
+}
+
+@keyframes homeLetterIgnite {
+  0% {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translate3d(0, -26px, 0) scale(0.92);
+  }
+  62% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 5px, 0) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes homeLetterBreathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.18); }
+}
+
+@keyframes handsWordReveal {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes screenSurfaceIn {
+  0% {
+    opacity: 0.88;
+    transform: translate3d(0, 10px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes panelBootIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes menuButtonBoot {
+  0% {
+    opacity: 0;
+    transform: translate3d(-18px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-loader::before,
+  .app-loader::after,
+  .loader-letter,
+  .loader-wordmark,
+  .loader-board,
+  .loader-cell,
+  .loader-progress span,
+  body.app-loaded #screen-menu .menu-title .tetris-word .tetris-letter,
+  body.app-loaded #screen-menu .menu-title .hands-word,
+  .screen:not(.hidden).screen-entering,
+  .screen:not(.hidden).screen-entering .screen-label,
+  .screen:not(.hidden).screen-entering .top-rail,
+  .screen:not(.hidden).screen-entering .cockpit-panel,
+  .screen:not(.hidden).screen-entering .lobby-shell,
+  .screen:not(.hidden).screen-entering .multi-hud,
+  .screen:not(.hidden).screen-entering .next-panel,
+  .screen:not(.hidden).screen-entering .webcam-preview-panel,
+  .screen:not(.hidden).screen-entering .versus-stack,
+  .screen:not(.hidden).screen-entering .menu-btn {
+    animation: none !important;
+  }
+}
+
 /* Neon reference home screen. */
 #screen-menu.screen-menu {
   background:
@@ -3557,4 +3933,18 @@ body:not(.in-game) .audio-corner {
     width: min(27vw, 96px);
     min-width: 78px;
   }
+}
+
+.app-loader.hidden,
+.app-loader.hidden::before,
+.app-loader.hidden::after,
+.app-loader.hidden * {
+  animation: none !important;
+  animation-play-state: paused !important;
+}
+
+#screen-menu .menu-playfield span,
+#screen-menu .menu-piece-rail span {
+  animation: none !important;
+  animation-play-state: paused !important;
 }
