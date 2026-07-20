@@ -18,11 +18,13 @@ const Tile = ({
   y,
   color,
   delay,
+  size = 48,
 }: {
   x: number;
   y: number;
   color: string;
   delay: number;
+  size?: number;
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -38,8 +40,8 @@ const Tile = ({
         position: "absolute",
         left: x,
         top: y,
-        width: 48,
-        height: 48,
+        width: size,
+        height: size,
         borderRadius: 4,
         background: color,
         boxShadow: `0 0 ${24 * appear}px ${color}`,
@@ -76,7 +78,31 @@ const RailLine = ({ top, color, delay }: { top: number; color: string; delay: nu
 
 export const MenuIntro = () => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, width, height } = useVideoConfig();
+  const isPortrait = height > width;
+  const menuTop = isPortrait ? 88 : 72;
+  const menuLeft = isPortrait ? 44 : 72;
+  const iconSize = isPortrait ? 56 : 58;
+  const titleLeft = isPortrait ? 76 : 118;
+  const titleTop = isPortrait ? 320 : 218;
+  const titleSize = isPortrait ? 132 : 138;
+  const handsSize = isPortrait ? 82 : 86;
+  const buttonWidth = isPortrait ? 500 : 520;
+  const buttonHeight = isPortrait ? 82 : 74;
+  const buttonGap = isPortrait ? 24 : 20;
+  const boardWidth = isPortrait ? 610 : 520;
+  const boardHeight = isPortrait ? 880 : 820;
+  const boardRight = isPortrait ? 74 : 232;
+  const boardTop = isPortrait ? 780 : 164;
+  const tileSize = isPortrait ? 58 : 48;
+  const tileGap = isPortrait ? 74 : 64;
+  const tileLeft = isPortrait ? 72 : 52;
+  const tileTop = isPortrait ? 172 : 84;
+  const sideRailRight = isPortrait ? 34 : 94;
+  const sideRailTop = isPortrait ? 820 : 218;
+  const sideRailWidth = isPortrait ? 52 : 48;
+  const sideRailHeight = isPortrait ? 760 : 640;
+  const bottomInset = isPortrait ? 70 : 72;
 
   const open = interpolate(frame, [0, 1.05 * fps], [0, 1], {
     easing: easeOut,
@@ -99,8 +125,6 @@ export const MenuIntro = () => {
     extrapolateRight: "clamp",
   });
 
-  const tileBaseX = 1180;
-  const tileBaseY = 650;
   const tiles = [
     [0, 5, colors.amber, 0.52],
     [1, 5, colors.amber, 0.58],
@@ -139,37 +163,87 @@ export const MenuIntro = () => {
         }}
       />
 
-      <RailLine top={184} color={colors.cyan} delay={0.1} />
-      <RailLine top={900} color={colors.magenta} delay={0.32} />
+      <RailLine top={isPortrait ? 150 : 92} color={colors.cyan} delay={0.1} />
+      <RailLine top={isPortrait ? 1750 : 984} color={colors.magenta} delay={0.32} />
 
       <div
         style={{
           position: "absolute",
-          left: 150,
-          top: 130,
-          width: 1620,
-          height: 820,
+          inset: 0,
           border: `2px solid rgba(117,247,255,${0.22 + glow * 0.36})`,
-          borderRadius: 10,
+          borderRadius: 0,
           background: "linear-gradient(145deg, rgba(8,18,29,0.72), rgba(4,10,16,0.58))",
           boxShadow: `0 0 ${70 * glow}px rgba(20,217,244,0.22), inset 0 0 90px rgba(0,0,0,0.72)`,
           opacity: open,
-          transform: `scale(${0.96 + open * 0.04})`,
         }}
       />
 
       <div
         style={{
           position: "absolute",
-          left: 230,
-          top: 246,
+          left: menuLeft,
+          top: menuTop,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          fontSize: 26,
+          fontWeight: 900,
+          letterSpacing: 2,
+          opacity: titleReveal,
+          fontFamily: "Cascadia Mono, Consolas, monospace",
+        }}
+      >
+        <span style={{ color: colors.cyan }}>01</span>
+        <span>MENU</span>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          right: isPortrait ? 42 : 72,
+          top: isPortrait ? 72 : 58,
+          display: "flex",
+          gap: isPortrait ? 12 : 18,
+          opacity: titleReveal,
+        }}
+      >
+        {[0, 1, 2].map((item) => (
+          <div
+            key={item}
+            style={{
+              width: iconSize,
+              height: iconSize,
+              border: "2px solid rgba(245,251,255,0.34)",
+              borderRadius: 8,
+              background: "rgba(2,6,10,0.65)",
+            }}
+          />
+        ))}
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          opacity: 0.1,
+          background:
+            "linear-gradient(rgba(117,247,255,0.16) 1px, transparent 1px), linear-gradient(90deg, rgba(117,247,255,0.16) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+        }}
+      />
+
+      <div
+        style={{
+          position: "absolute",
+          left: titleLeft,
+          top: titleTop,
           opacity: titleReveal,
           transform: `translateX(${(1 - titleReveal) * -90}px)`,
         }}
       >
         <div
           style={{
-            fontSize: 116,
+            fontSize: titleSize,
             lineHeight: 0.92,
             fontWeight: 950,
             letterSpacing: 10,
@@ -180,7 +254,7 @@ export const MenuIntro = () => {
         </div>
         <div
           style={{
-            fontSize: 72,
+            fontSize: handsSize,
             lineHeight: 1,
             fontWeight: 950,
             letterSpacing: 13,
@@ -192,25 +266,25 @@ export const MenuIntro = () => {
         </div>
         <div
           style={{
-            marginTop: 36,
+            marginTop: 42,
             display: "grid",
-            gap: 16,
-            width: 390,
+            gap: buttonGap,
+            width: buttonWidth,
           }}
         >
           {["SINGLE PLAYER", "MULTIPLAYER", "HOW TO PLAY"].map((label, index) => (
             <div
               key={label}
               style={{
-                height: 62,
+                height: buttonHeight,
                 display: "flex",
                 alignItems: "center",
-                paddingLeft: 26,
+                paddingLeft: 34,
                 border: `2px solid ${index === 0 ? colors.cyan : index === 1 ? colors.magenta : colors.amber}`,
                 borderRadius: 8,
                 background: "rgba(2,7,11,0.74)",
                 color: colors.text,
-                fontSize: 22,
+                fontSize: 25,
                 fontWeight: 850,
                 letterSpacing: 4,
                 opacity: interpolate(frame, [(0.8 + index * 0.15) * fps, (1.2 + index * 0.15) * fps], [0, 1], {
@@ -229,10 +303,10 @@ export const MenuIntro = () => {
       <div
         style={{
           position: "absolute",
-          right: 248,
-          top: 190,
-          width: 430,
-          height: 720,
+          right: boardRight,
+          top: boardTop,
+          width: boardWidth,
+          height: boardHeight,
           border: `2px solid rgba(117,247,255,${0.32 + glow * 0.32})`,
           background:
             "linear-gradient(rgba(117,247,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(117,247,255,0.12) 1px, transparent 1px), rgba(0,0,0,0.24)",
@@ -244,10 +318,11 @@ export const MenuIntro = () => {
         {tiles.map(([x, y, color, delay]) => (
           <Tile
             key={`${x}-${y}`}
-            x={32 + Number(x) * 56}
-            y={44 + Number(y) * 56}
+            x={tileLeft + Number(x) * tileGap}
+            y={tileTop + Number(y) * tileGap}
             color={String(color)}
             delay={Number(delay)}
+            size={tileSize}
           />
         ))}
       </div>
@@ -255,10 +330,10 @@ export const MenuIntro = () => {
       <div
         style={{
           position: "absolute",
-          right: 182,
-          top: 238,
-          width: 38,
-          height: 560,
+          right: sideRailRight,
+          top: sideRailTop,
+          width: sideRailWidth,
+          height: sideRailHeight,
           display: "grid",
           gridTemplateRows: "repeat(5, 1fr)",
           gap: 18,
@@ -285,8 +360,8 @@ export const MenuIntro = () => {
       <div
         style={{
           position: "absolute",
-          left: 230,
-          bottom: 170,
+          left: isPortrait ? 44 : 72,
+          bottom: bottomInset,
           padding: "15px 22px",
           border: `2px solid rgba(101,240,91,${0.48 + glow * 0.3})`,
           borderRadius: 8,
@@ -303,6 +378,29 @@ export const MenuIntro = () => {
         }}
       >
         CAMERA READY
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          right: isPortrait ? 34 : 72,
+          bottom: bottomInset,
+          padding: "15px 22px",
+          border: "2px solid rgba(147,163,173,0.35)",
+          borderRadius: 8,
+          color: "rgba(245,251,255,0.78)",
+          fontSize: 18,
+          fontWeight: 850,
+          letterSpacing: 3,
+          background: "rgba(2,7,11,0.72)",
+          opacity: interpolate(frame, [1.35 * fps, 2.15 * fps], [0, 1], {
+            easing: easeOut,
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
+        }}
+      >
+        KEYBOARD MODE
       </div>
     </AbsoluteFill>
   );

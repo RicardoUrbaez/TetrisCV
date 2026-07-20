@@ -629,6 +629,30 @@
     }
   }
 
+  function updateLobbyRoster() {
+    var playerOne = document.getElementById("rosterPlayerOne");
+    var playerTwo = document.getElementById("rosterPlayerTwo");
+    var rosterBadge = document.querySelector(".roster-title .status-pill");
+
+    if (playerOne) {
+      var waitingForRoom = !roomCode && playerCount === 0;
+      var playerOneLabel = waitingForRoom ? "YOU" : (isHost ? "YOU" : "HOST");
+      var playerOneRole = waitingForRoom ? "Choose mode" : (isHost ? "Host" : "In room");
+      playerOne.classList.add("roster-player-active");
+      playerOne.innerHTML = '<span class="status-dot"></span><strong>' + playerOneLabel + '</strong><em>' + playerOneRole + '</em>';
+    }
+
+    if (playerTwo) {
+      var hasSecondPlayer = playerCount >= 2;
+      playerTwo.classList.toggle("roster-player-connected", hasSecondPlayer);
+      playerTwo.innerHTML = hasSecondPlayer
+        ? '<span class="status-dot"></span><strong>' + (isHost ? "PLAYER 2 CONNECTED" : "YOU JOINED") + '</strong><em>Ready</em>'
+        : '<span class="pending-dot"></span><strong>Waiting for player 2</strong><em>Open slot</em>';
+    }
+
+    if (rosterBadge) rosterBadge.textContent = playerCount >= 2 ? "2 / 2 READY" : "1 / 2";
+  }
+
   function setText(id, value) {
     var el = document.getElementById(id);
     if (el) el.textContent = value;
@@ -1007,12 +1031,23 @@
       var oy = slot ? slot.y : (h - BOARD_PX_H) / 2;
       drawOneBoard(gfx, board, current, currentPx, currentPy, ox, oy, slot ? slot.block : BLOCK_PX);
     } else if (screen === "multi_game") {
+      var playerSlot = getBoardSlotRect(".multi-board-slot-player");
+      var opponentSlot = getBoardSlotRect(".multi-board-slot-opponent");
       var gap = 40;
       var totalW = BOARD_PX_W * 2 + gap;
       var startX = (w - totalW) / 2;
       var oy2 = (h - BOARD_PX_H) / 2;
 
-      drawOneBoard(gfx, board, current, currentPx, currentPy, startX, oy2);
+      drawOneBoard(
+        gfx,
+        board,
+        current,
+        currentPx,
+        currentPy,
+        playerSlot ? playerSlot.x : startX,
+        playerSlot ? playerSlot.y : oy2,
+        playerSlot ? playerSlot.block : BLOCK_PX
+      );
 
       var oppBoard = opponentState && opponentState.board ? opponentState.board : createEmptyBoard();
       var oppCur = null, oppPx = 0, oppPy = 0;
@@ -1022,7 +1057,16 @@
         if (opponentState.current && opponentState.current.name)
           oppCur = { name: opponentState.current.name, cells: opponentState.current.cells || [] };
       }
-      drawOneBoard(gfx, oppBoard, oppCur, oppPx, oppPy, startX + BOARD_PX_W + gap, oy2);
+      drawOneBoard(
+        gfx,
+        oppBoard,
+        oppCur,
+        oppPx,
+        oppPy,
+        opponentSlot ? opponentSlot.x : startX + BOARD_PX_W + gap,
+        opponentSlot ? opponentSlot.y : oy2,
+        opponentSlot ? opponentSlot.block : BLOCK_PX
+      );
     }
   }
 
@@ -1074,6 +1118,7 @@
     var statusEl = document.getElementById("lobbyStatus");
     showLobbyInvite(roomCode);
     updateBrowserInviteUrl(roomCode);
+    updateLobbyRoster();
     if (statusEl) statusEl.textContent = "Room created. Waiting for player 2...";
     var btn = document.getElementById("btnStartMulti");
     if (btn) btn.classList.add("hidden");
@@ -1085,8 +1130,9 @@
     roomCode = normalizeRoomCode(data.roomCode);
     playerCount = data.playerCount || 2;
     updateBrowserInviteUrl(roomCode);
+    updateLobbyRoster();
     var statusEl = document.getElementById("lobbyStatus");
-    if (statusEl) statusEl.textContent = "Joined room. " + playerCount + "/2 players.";
+    if (statusEl) statusEl.textContent = "Joined room. You and the host are connected.";
   });
 
   socket.on("room-error", function(data) {
@@ -1096,8 +1142,9 @@
 
   socket.on("players-update", function(data) {
     playerCount = data.playerCount || 0;
+    updateLobbyRoster();
     var statusEl = document.getElementById("lobbyStatus");
-    if (statusEl) statusEl.textContent = playerCount + "/2 players.";
+    if (statusEl) statusEl.textContent = playerCount >= 2 ? "Player 2 joined. Ready to start." : "Waiting for player 2...";
     var btn = document.getElementById("btnStartMulti");
     if (btn && isHost && playerCount >= 2) btn.classList.remove("hidden");
     else if (btn && (!isHost || playerCount < 2)) btn.classList.add("hidden");
@@ -1205,6 +1252,7 @@
     if (code) code.classList.add("hidden");
     var btn = document.getElementById("btnStartMulti");
     if (btn) btn.classList.add("hidden");
+    updateLobbyRoster();
     var input = document.getElementById("roomCodeInput");
     if (input && pendingInviteRoomCode) {
       input.value = pendingInviteRoomCode;

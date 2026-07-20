@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tetris Hands</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=frontend-redesign-6" />
 </head>
 <body>
-  <div class="app-backdrop" aria-hidden="true">
+  <div class="app-backdrop" aria-hidden="false">
     <div class="grid-sheen"></div>
     <div class="scanline"></div>
   </div>
@@ -27,10 +27,11 @@
   <!-- ========== MENU ========== -->
   <div id="screen-menu" class="screen screen-menu">
     <div class="menu-stage">
-      <video class="menu-motion" autoplay loop muted playsinline poster="assets/motion/menu-intro-poster.svg">
-        <source src="assets/motion/menu-intro.mp4" type="video/mp4" />
+      <video class="menu-motion-bg" autoplay loop muted playsinline poster="assets/motion/menu-intro-still.png">
+        <source src="assets/motion/menu-intro.mp4" type="video/mp4" media="(min-width: 761px)" />
+        <source src="assets/motion/menu-intro-portrait.mp4" type="video/mp4" media="(max-width: 760px)" />
       </video>
-      <div class="menu-motion-fallback" aria-hidden="true"></div>
+      <div class="menu-motion-bg-fallback" aria-hidden="true"></div>
 
       <div class="top-rail">
         <span class="screen-index">01</span>
@@ -40,23 +41,43 @@
         </div>
       </div>
 
-      <div class="menu-box">
-        <div class="title-lockup">
-          <h1 class="menu-title"><span>TETRIS</span><span>HANDS</span></h1>
+      <section class="menu-copy" aria-labelledby="menuTitle">
+        <h1 id="menuTitle" class="menu-title"><span>TETRIS</span><span>HANDS</span></h1>
+        <div class="menu-box">
+          <p id="menuCameraBlocked" class="menu-camera-blocked hidden">Keyboard mode</p>
+          <button type="button" id="btnSingle" class="menu-btn menu-btn-primary">
+            <span class="btn-icon icon-user" aria-hidden="true"></span>
+            <span>SINGLE PLAYER</span>
+          </button>
+          <button type="button" id="btnMulti" class="menu-btn menu-btn-accent">
+            <span class="btn-icon icon-team" aria-hidden="true"></span>
+            <span>MULTIPLAYER</span>
+          </button>
+          <button type="button" id="btnHowToPlay" class="menu-btn menu-btn-warning">
+            <span class="btn-icon icon-book" aria-hidden="true"></span>
+            <span>HOW TO PLAY</span>
+          </button>
         </div>
-        <p id="menuCameraBlocked" class="menu-camera-blocked hidden">Keyboard mode</p>
-        <button type="button" id="btnSingle" class="menu-btn menu-btn-primary">
-          <span class="btn-icon icon-user" aria-hidden="true"></span>
-          <span>SINGLE PLAYER</span>
-        </button>
-        <button type="button" id="btnMulti" class="menu-btn menu-btn-accent">
-          <span class="btn-icon icon-team" aria-hidden="true"></span>
-          <span>MULTIPLAYER</span>
-        </button>
-        <button type="button" id="btnHowToPlay" class="menu-btn menu-btn-warning">
-          <span class="btn-icon icon-book" aria-hidden="true"></span>
-          <span>HOW TO PLAY</span>
-        </button>
+      </section>
+
+      <div class="menu-playfield" aria-hidden="true">
+        <span style="--x: 4; --y: 7; --c: var(--warning); --d: 0s"></span>
+        <span style="--x: 5; --y: 7; --c: var(--warning); --d: .05s"></span>
+        <span style="--x: 6; --y: 7; --c: var(--accent); --d: .1s"></span>
+        <span style="--x: 7; --y: 7; --c: var(--success); --d: .15s"></span>
+        <span style="--x: 8; --y: 7; --c: var(--success); --d: .2s"></span>
+        <span style="--x: 5; --y: 6; --c: var(--warning); --d: .25s"></span>
+        <span style="--x: 6; --y: 6; --c: var(--accent); --d: .3s"></span>
+        <span style="--x: 7; --y: 6; --c: var(--accent); --d: .35s"></span>
+        <span style="--x: 8; --y: 6; --c: var(--success); --d: .4s"></span>
+        <span style="--x: 6; --y: 5; --c: var(--primary); --d: .45s"></span>
+        <span style="--x: 6; --y: 4; --c: var(--primary); --d: .5s"></span>
+        <span style="--x: 6; --y: 3; --c: var(--primary); --d: .55s"></span>
+        <span style="--x: 9; --y: 7; --c: var(--primary); --d: .6s"></span>
+      </div>
+
+      <div class="menu-piece-rail" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
       </div>
 
       <div class="menu-status-row">
@@ -209,7 +230,7 @@
     <div class="lobby-shell cockpit-panel">
       <div class="lobby-actions">
         <h2 class="menu-title-small">MULTIPLAYER</h2>
-        <p class="lobby-note">Share your room link or room code with another player anywhere.</p>
+        <p class="lobby-note">Host a room, play the CPU, or join a friend with a short room code.</p>
         <button type="button" id="btnHost" class="menu-btn menu-btn-accent">
           <span class="btn-icon icon-host" aria-hidden="true"></span>
           <span>HOST GAME</span>
@@ -235,17 +256,19 @@
 
       <div class="lobby-roster">
         <div class="roster-title">
-          <span>LOBBY</span>
+          <span>PLAYERS</span>
           <span class="status-pill status-ready">YOU</span>
         </div>
-        <div class="roster-list" aria-hidden="true">
-          <div><span class="status-dot"></span><strong>YOU</strong><em>Host</em></div>
-          <div><span class="pending-dot"></span><strong>Waiting for players...</strong></div>
-          <div><span class="pending-dot"></span><strong>Waiting for player...</strong></div>
-          <div><span class="pending-dot"></span><strong>Waiting for player...</strong></div>
+        <div class="roster-list" aria-label="Lobby players">
+          <div id="rosterPlayerOne" class="roster-player roster-player-active">
+            <span class="status-dot"></span><strong>YOU</strong><em>Host</em>
+          </div>
+          <div id="rosterPlayerTwo" class="roster-player">
+            <span class="pending-dot"></span><strong>Waiting for player 2</strong><em>Open slot</em>
+          </div>
         </div>
         <div id="lobbyStatus" class="lobby-status"></div>
-        <button type="button" id="btnStartMulti" class="menu-btn menu-btn-primary hidden">START GAME (HOST)</button>
+        <button type="button" id="btnStartMulti" class="menu-btn menu-btn-primary menu-btn-full hidden">START GAME (HOST)</button>
       </div>
     </div>
   </div>
@@ -260,6 +283,8 @@
           <span>YOU</span>
           <span><span id="mpScore1">0</span> / <span id="mpLines1">0</span></span>
         </div>
+
+        <div class="multi-board-slot multi-board-slot-player" aria-hidden="true"></div>
 
         <div id="webcamPreviewP1" class="webcam-preview-panel multi-preview">
           <div class="webcam-preview-label"><span class="status-dot"></span> YOUR WEBCAM</div>
@@ -283,6 +308,8 @@
           <span id="opponentNameLabel">OPPONENT</span>
           <span><span id="mpScore2">0</span> / <span id="mpLines2">0</span></span>
         </div>
+
+        <div class="multi-board-slot multi-board-slot-opponent" aria-hidden="true"></div>
 
         <div id="webcamPreviewP2" class="webcam-preview-panel multi-preview">
           <div id="opponentCameraLabel" class="webcam-preview-label">OPPONENT CAMERA</div>
