@@ -1559,7 +1559,7 @@ body.in-game .game-container canvas {
 
 .multi-layout {
   position: absolute;
-  inset: clamp(116px, 16vh, 148px) clamp(16px, 3.2vw, 56px) clamp(18px, 4vh, 38px);
+  inset: clamp(184px, 25vh, 212px) clamp(16px, 3.2vw, 56px) clamp(18px, 4vh, 38px);
   z-index: 5;
   display: grid;
   grid-template-columns: minmax(210px, 1fr) minmax(74px, 0.2fr) minmax(210px, 1fr);
@@ -1784,8 +1784,11 @@ body.in-game .game-container canvas {
 }
 
 #multiReadyOverlay {
-  place-items: end center;
-  padding-bottom: 14px;
+  inset: auto 0 auto 0;
+  top: calc(clamp(52px, 7vh, 76px) + 84px);
+  height: auto;
+  place-items: start center;
+  padding: 0;
   background: transparent;
 }
 
@@ -2265,7 +2268,8 @@ video {
   }
 
   #multiReadyOverlay {
-    padding-bottom: 54px;
+    top: calc(max(48px, calc(env(safe-area-inset-top) + 42px)) + 66px);
+    padding: 0;
   }
 
   #multiReadyOverlay .start-overlay-label {

@@ -14,7 +14,7 @@
   },
   "softDrop": {
     "gesture": "trained_flat_hand_wave_down",
-    "waveDownThreshold": 0.038,
+    "waveDownThreshold": 0.09,
     "waveWindowMs": 180,
     "repeatMs": 80,
     "holdMs": 650,
@@ -28,7 +28,7 @@
       "soft_drop_wave_down": {
         "imageCount": 600,
         "imageDir": "cv\\training_data\\session_20260620_005144\\soft_drop_wave_down",
-        "waveDownThreshold": 0.038,
+        "waveDownThreshold": 0.09,
         "medianPalmY": 0.5447
       }
     },

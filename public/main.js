@@ -16,7 +16,7 @@
   // ===================== GAME CONSTANTS =====================
   var BOARD_W = 10, BOARD_H = 20, BLOCK_PX = 28;
   var SCORE_TABLE = { 1: 100, 2: 300, 3: 500, 4: 800 };
-  var LINES_PER_LEVEL = 10, GRAVITY_BASE_MS = 1000, GRAVITY_MIN_MS = 80;
+  var LINES_PER_LEVEL = 10, GRAVITY_BASE_MS = 1350, GRAVITY_MIN_MS = 160;
   var GARBAGE_BLOCK_ID = 7;
 
   // ===================== CV / GESTURE TUNING =====================
@@ -920,6 +920,7 @@
     updateHud();
     drawNextPiece();
     showGameOver(gameOver && screen !== "multi_game");
+    updateCameraStatusUI();
   }
 
   function goToReadyState() {
@@ -1870,6 +1871,10 @@
   var menuCameraBlocked = document.getElementById("menuCameraBlocked");
   var webcamPanelStatus = document.getElementById("webcamPanelStatus");
   var webcamPanelStatusMulti = document.getElementById("webcamPanelStatusMulti");
+  var cameraStatusPill = document.getElementById("cameraStatusPill");
+  var inputStatusPill = document.getElementById("inputStatusPill");
+  var webcamPreviewLabelSingle = document.getElementById("webcamPreviewLabelSingle");
+  var webcamPreviewLabelMulti = document.getElementById("webcamPreviewLabelMulti");
 
   var webcamOk = false;
   var cameraStatus = "unknown";
@@ -1882,10 +1887,14 @@
     videoEl: null,
     rafId: 0,
     _tick: null,
-    _lastResultsLog: 0
+    _lastResultsLog: 0,
+    _lastSendErrorLog: 0,
+    lastStatusText: ""
   };
 
   function getActiveVideoEl() {
+    if (screen === "single" && videoPreview) return videoPreview;
+    if (screen === "multi_game" && videoPreviewMulti) return videoPreviewMulti;
     return cvInputVideo || videoPreview || videoPreviewMulti;
   }
 
@@ -1903,6 +1912,29 @@
   }
 
   function updateCameraStatusUI() {
+    if (cameraStatusPill) {
+      cameraStatusPill.classList.toggle("status-ready", cameraStatus === "ready");
+      cameraStatusPill.classList.toggle("status-muted", cameraStatus !== "ready");
+      if (cameraStatus === "ready") cameraStatusPill.textContent = cvManager.isRunning ? "CV RUNNING" : "CAMERA READY";
+      else if (cameraStatus === "blocked") cameraStatusPill.textContent = "CAMERA BLOCKED";
+      else if (cameraStatus === "unavailable") cameraStatusPill.textContent = "CAMERA UNAVAILABLE";
+      else cameraStatusPill.textContent = "CAMERA STARTING";
+    }
+    if (inputStatusPill) {
+      var handSeenRecently = cvManager.lastHandSeenMs && Date.now() - cvManager.lastHandSeenMs < 1200;
+      if (handSeenRecently) inputStatusPill.textContent = "HAND TRACKING";
+      else if (cvManager.isRunning) inputStatusPill.textContent = "NO HAND";
+      else inputStatusPill.textContent = "TRAINED GESTURES";
+    }
+    var cameraLabel = cameraStatus === "ready"
+      ? (cvManager.isRunning ? "CV RUNNING" : "CAMERA READY")
+      : cameraStatus === "blocked"
+        ? "CAMERA BLOCKED"
+        : cameraStatus === "unavailable"
+          ? "CAMERA UNAVAILABLE"
+          : "CAMERA STARTING";
+    if (webcamPreviewLabelSingle) webcamPreviewLabelSingle.innerHTML = '<span class="status-dot"></span> ' + cameraLabel;
+    if (webcamPreviewLabelMulti) webcamPreviewLabelMulti.innerHTML = '<span class="status-dot"></span> ' + cameraLabel;
     if (menuCameraBlocked) {
       if (cameraStatus === "blocked") menuCameraBlocked.classList.remove("hidden");
       else menuCameraBlocked.classList.add("hidden");
@@ -1918,7 +1950,19 @@
   }
 
   function updateCvStatus(text) {
-    return;
+    cvManager.lastStatusText = text || "";
+    var target = screen === "multi_game"
+      ? document.getElementById("cvStatusMulti")
+      : document.getElementById("cvStatusSingle");
+    var debugStatus = document.getElementById("dbCvStatus");
+
+    if (target) {
+      target.textContent = cvManager.lastStatusText;
+      if (cvManager.lastStatusText) target.classList.remove("hidden");
+      else target.classList.add("hidden");
+    }
+    if (debugStatus) debugStatus.textContent = cvManager.lastStatusText || "-";
+    updateCameraStatusUI();
   }
 
   function tryCameraConstraints(constraintsList) {
@@ -1960,6 +2004,9 @@
       { video: { width: { ideal: desiredWidth }, height: { ideal: desiredHeight } }, audio: false },
       { video: true, audio: false }
     ];
+
+    cameraStatus = "starting";
+    updateCameraStatusUI();
 
     return tryCameraConstraints(cameraAttempts).then(function(stream) {
       cvManager.stream = stream;
@@ -2007,6 +2054,37 @@
       updateCameraStatusUI();
     }
     console.log("[CV] stopped. stopStreamTracks =", !!stopStreamTracks);
+  }
+
+  function waitForVideoReady(videoEl) {
+    if (!videoEl) return Promise.resolve(false);
+    if (videoEl.readyState >= 2 && videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+      return Promise.resolve(true);
+    }
+
+    return new Promise(function(resolve) {
+      var settled = false;
+      var timeoutId = 0;
+
+      function finish(value) {
+        if (settled) return;
+        settled = true;
+        videoEl.removeEventListener("loadeddata", onReady);
+        videoEl.removeEventListener("loadedmetadata", onReady);
+        if (timeoutId) window.clearTimeout(timeoutId);
+        resolve(value);
+      }
+
+      function onReady() {
+        finish(videoEl.readyState >= 2 && videoEl.videoWidth > 0 && videoEl.videoHeight > 0);
+      }
+
+      videoEl.addEventListener("loadeddata", onReady);
+      videoEl.addEventListener("loadedmetadata", onReady);
+      timeoutId = window.setTimeout(function() {
+        finish(videoEl.readyState >= 2);
+      }, 1200);
+    });
   }
 
   // ===================== GESTURE HELPERS =====================
@@ -2308,17 +2386,12 @@
       }
     }
 
-    var trainedSoftDropActive = rotateLabel === "soft_drop_wave_down";
-    var softDropGestureActive = trainedSoftDropActive || !REQUIRE_OPEN_PALM_SOFTDROP || openPalm;
+    var trainedSoftDropReady = rotateLabel === "soft_drop_wave_down";
+    var softDropGestureActive = trainedSoftDropReady || !REQUIRE_OPEN_PALM_SOFTDROP || openPalm;
 
     // --- flat-hand wave down => soft drop burst ---
     dropHistory.push({ y: rawY, emaY: emaY, t: now });
     while (dropHistory.length > 0 && now - dropHistory[0].t > DROP_TIME_MS) dropHistory.shift();
-
-    if (trainedSoftDropActive) {
-      softDropHeld = true;
-      softDropHeldUntil = now + SOFTDROP_HOLD_MS;
-    }
 
     if (dropHistory.length >= 2 && softDropGestureActive) {
       var oldestDrop = dropHistory[0];
@@ -2371,11 +2444,18 @@
   function startCameraAndCV(targetVideoEl) {
     if (!targetVideoEl) return Promise.resolve(false);
     if (!targetVideoEl.srcObject || !targetVideoEl.srcObject.active) return Promise.resolve(false);
+    if (targetVideoEl.readyState < 2 || targetVideoEl.videoWidth === 0 || targetVideoEl.videoHeight === 0) {
+      updateCvStatus("CV: waiting for camera frames");
+      return waitForVideoReady(targetVideoEl).then(function(ok) {
+        return ok ? startCameraAndCV(targetVideoEl) : false;
+      });
+    }
 
     // Create Hands once
     if (!cvManager.hands) {
       if (typeof window.Hands === "undefined") {
         console.error("[CV] window.Hands is undefined. mediapipe hands.js not loaded.");
+        updateCvStatus("CV: MediaPipe Hands did not load");
         return Promise.resolve(false);
       }
 
@@ -2387,8 +2467,8 @@
       handsInstance.setOptions({
         maxNumHands: 2,
         modelComplexity: 1,
-        minDetectionConfidence: 0.6,
-        minTrackingConfidence: 0.6
+        minDetectionConfidence: 0.55,
+        minTrackingConfidence: 0.55
       });
 
       handsInstance.onResults(onResults);
@@ -2404,6 +2484,7 @@
 
     cvManager.videoEl = targetVideoEl;
     cvManager.isRunning = true;
+    updateCameraStatusUI();
 
     console.log("[CV] LOOP STARTED (rAF) on", targetVideoEl.id);
 
@@ -2414,7 +2495,10 @@
       if (!cvManager.isRunning || cvManager.videoEl !== targetVideoEl) return;
       cvManager.rafId = requestAnimationFrame(tick);
 
-      if (!targetVideoEl.srcObject || targetVideoEl.readyState < 2) return;
+      if (!targetVideoEl.srcObject || targetVideoEl.readyState < 2) {
+        updateCvStatus("CV: waiting for camera frames");
+        return;
+      }
 
       var now = performance.now();
       if (now - lastSendTs < CV_FRAME_MS) return;
@@ -2427,12 +2511,18 @@
         .then(function() { sendInFlight = false; })
         .catch(function(e) {
           sendInFlight = false;
+          if (!cvManager._lastSendErrorLog || Date.now() - cvManager._lastSendErrorLog > 1200) {
+            cvManager._lastSendErrorLog = Date.now();
+            console.warn("[CV] MediaPipe send failed", e);
+            updateCvStatus("CV: MediaPipe frame error");
+          }
           // Don’t hard fail — CV should keep trying
         });
     }
 
     cvManager._tick = tick;
     cvManager.rafId = requestAnimationFrame(tick);
+    updateCvStatus("CV: running trained gesture detector");
     return Promise.resolve(true);
   }
 

@@ -136,8 +136,8 @@
       </div>
 
       <div class="menu-status-row">
-        <span class="status-pill status-ready">CAMERA READY</span>
-        <span class="status-pill status-muted">KEYBOARD MODE</span>
+        <span id="cameraStatusPill" class="status-pill status-muted">CAMERA STARTING</span>
+        <span id="inputStatusPill" class="status-pill status-muted">KEYBOARD MODE</span>
       </div>
     </div>
   </div>
@@ -261,7 +261,7 @@
       </div>
 
       <aside id="webcamPreviewSingle" class="webcam-preview-panel cockpit-panel">
-        <div class="webcam-preview-label"><span class="status-dot"></span> CAMERA READY</div>
+        <div id="webcamPreviewLabelSingle" class="webcam-preview-label"><span class="status-dot"></span> CAMERA STARTING</div>
         <div class="camera-frame">
           <video id="webcamPreview" class="webcam-video-mirror" autoplay playsinline muted></video>
           <div class="hand-overlay" aria-hidden="true"></div>
@@ -349,7 +349,7 @@
         <div class="multi-board-slot multi-board-slot-player" aria-hidden="true"></div>
 
         <div id="webcamPreviewP1" class="webcam-preview-panel multi-preview">
-          <div class="webcam-preview-label"><span class="status-dot"></span> YOUR WEBCAM</div>
+          <div id="webcamPreviewLabelMulti" class="webcam-preview-label"><span class="status-dot"></span> CAMERA STARTING</div>
           <div class="camera-frame">
             <video id="webcamPreviewMulti" class="webcam-video-mirror" autoplay playsinline muted></video>
             <div class="hand-overlay" aria-hidden="true"></div>
@@ -448,6 +448,6 @@
   <script src="gestureTraining.js"></script>
   <script src="gestureSamples.js"></script>
   <script src="gestureClassifier.js"></script>
-  <script src="main.js?v=music-default-45"></script>
+  <script src="main.js?v=cv-trained-gestures-1"></script>
 </body>
 </html>
