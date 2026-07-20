@@ -193,6 +193,210 @@
     return Math.floor((BOARD_W - w) / 2);
   }
 
+  // ===================== MENU LIVE PREVIEW =====================
+  var MENU_PREVIEW_W = 10;
+  var MENU_PREVIEW_H = 16;
+  var menuPreviewRunning = false;
+  var menuPreviewLastDrop = 0;
+  var menuPreviewDropMs = 520;
+  var menuPreviewBoard = null;
+  var menuPreviewPieceIndex = 0;
+  var menuPreviewCurrent = null;
+
+  var MENU_PREVIEW_COLORS = {
+    I: "#18d8f2",
+    O: "#ffc52d",
+    T: "#ff4fa3",
+    S: "#60ef5d",
+    Z: "#ff5367",
+    J: "#3869ff",
+    L: "#ff8a2a"
+  };
+
+  var MENU_PREVIEW_SEQUENCE = [
+    { name: "T", x: 3, cells: [[0,0],[1,0],[2,0],[1,1]] },
+    { name: "I", x: 5, cells: [[0,0],[0,1],[0,2],[0,3]] },
+    { name: "L", x: 0, cells: [[0,0],[0,1],[0,2],[1,2]] },
+    { name: "S", x: 5, cells: [[1,0],[2,0],[0,1],[1,1]] },
+    { name: "Z", x: 3, cells: [[0,0],[1,0],[1,1],[2,1]] }
+  ];
+
+  function makeMenuPreviewBoard() {
+    var b = Array.from({ length: MENU_PREVIEW_H }, function () {
+      return Array(MENU_PREVIEW_W).fill(null);
+    });
+    var seeds = [
+      [0,15,"J"], [1,15,"J"], [2,15,"J"], [3,15,"Z"], [4,15,"I"], [5,15,"I"], [6,15,"J"], [7,15,"T"], [8,15,"T"], [9,15,"T"],
+      [0,14,"J"], [1,14,"Z"], [2,14,"T"], [3,14,"T"], [4,14,"I"], [5,14,"I"], [6,14,"J"], [7,14,"T"], [8,14,"O"], [9,14,"O"],
+      [0,13,"O"], [1,13,"Z"], [2,13,"L"], [4,13,"I"], [5,13,"I"], [6,13,"S"], [7,13,"S"], [9,13,"O"],
+      [0,12,"O"], [1,12,"O"], [3,12,"L"], [6,12,"S"], [7,12,"S"], [8,12,"Z"], [9,12,"L"],
+      [0,11,"O"], [8,11,"T"], [9,11,"T"],
+      [9,10,"T"]
+    ];
+    seeds.forEach(function(cell) {
+      b[cell[1]][cell[0]] = cell[2];
+    });
+    return b;
+  }
+
+  function spawnMenuPreviewPiece() {
+    var spec = MENU_PREVIEW_SEQUENCE[menuPreviewPieceIndex % MENU_PREVIEW_SEQUENCE.length];
+    menuPreviewPieceIndex++;
+    menuPreviewCurrent = {
+      name: spec.name,
+      x: spec.x,
+      y: -Math.max.apply(null, spec.cells.map(function(cell) { return cell[1]; })) - 1,
+      cells: spec.cells.map(function(cell) { return cell.slice(); })
+    };
+  }
+
+  function collidesMenuPreview(piece, nextY) {
+    for (var i = 0; i < piece.cells.length; i++) {
+      var x = piece.x + piece.cells[i][0];
+      var y = nextY + piece.cells[i][1];
+      if (x < 0 || x >= MENU_PREVIEW_W || y >= MENU_PREVIEW_H) return true;
+      if (y >= 0 && menuPreviewBoard[y][x]) return true;
+    }
+    return false;
+  }
+
+  function compactMenuPreviewBoard() {
+    var topOccupied = menuPreviewBoard.slice(0, 5).some(function(row) {
+      return row.some(Boolean);
+    });
+    if (topOccupied) {
+      menuPreviewBoard = makeMenuPreviewBoard();
+      return;
+    }
+
+    menuPreviewBoard = menuPreviewBoard.filter(function(row) {
+      return !row.every(Boolean);
+    });
+    while (menuPreviewBoard.length < MENU_PREVIEW_H) {
+      menuPreviewBoard.unshift(Array(MENU_PREVIEW_W).fill(null));
+    }
+  }
+
+  function lockMenuPreviewPiece() {
+    menuPreviewCurrent.cells.forEach(function(cell) {
+      var x = menuPreviewCurrent.x + cell[0];
+      var y = menuPreviewCurrent.y + cell[1];
+      if (y >= 0 && y < MENU_PREVIEW_H && x >= 0 && x < MENU_PREVIEW_W) {
+        menuPreviewBoard[y][x] = menuPreviewCurrent.name;
+      }
+    });
+    compactMenuPreviewBoard();
+    spawnMenuPreviewPiece();
+  }
+
+  function resizeMenuPreviewCanvas(canvas) {
+    var rect = canvas.getBoundingClientRect();
+    var dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+    var width = Math.max(1, Math.round(rect.width * dpr));
+    var height = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    return { width: width, height: height, dpr: dpr };
+  }
+
+  function drawMenuPreviewBlock(ctx, x, y, block, color) {
+    var gap = Math.max(1, block * 0.07);
+    var radius = Math.max(2, block * 0.12);
+    var px = x * block + gap;
+    var py = y * block + gap;
+    var size = block - gap * 2;
+    if (y < 0) return;
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = block * 0.42;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(px, py, size, size, radius);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = Math.max(1, block * 0.04);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawMenuPreviewCanvas(now) {
+    var canvas = document.getElementById("menuPreviewCanvas");
+    if (!canvas) return;
+    var size = resizeMenuPreviewCanvas(canvas);
+    var ctx = canvas.getContext("2d");
+    var block = Math.min(size.width / MENU_PREVIEW_W, size.height / MENU_PREVIEW_H);
+    ctx.clearRect(0, 0, size.width, size.height);
+
+    ctx.save();
+    ctx.lineWidth = Math.max(1, block * 0.025);
+    ctx.strokeStyle = "rgba(92, 229, 246, 0.2)";
+    for (var col = 0; col <= MENU_PREVIEW_W; col++) {
+      ctx.beginPath();
+      ctx.moveTo(Math.round(col * block) + 0.5, 0);
+      ctx.lineTo(Math.round(col * block) + 0.5, MENU_PREVIEW_H * block);
+      ctx.stroke();
+    }
+    for (var row = 0; row <= MENU_PREVIEW_H; row++) {
+      ctx.beginPath();
+      ctx.moveTo(0, Math.round(row * block) + 0.5);
+      ctx.lineTo(MENU_PREVIEW_W * block, Math.round(row * block) + 0.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    for (var y = 0; y < MENU_PREVIEW_H; y++) {
+      for (var x = 0; x < MENU_PREVIEW_W; x++) {
+        var name = menuPreviewBoard[y][x];
+        if (name) drawMenuPreviewBlock(ctx, x, y, block, MENU_PREVIEW_COLORS[name]);
+      }
+    }
+
+    if (menuPreviewCurrent) {
+      menuPreviewCurrent.cells.forEach(function(cell) {
+        drawMenuPreviewBlock(
+          ctx,
+          menuPreviewCurrent.x + cell[0],
+          menuPreviewCurrent.y + cell[1],
+          block,
+          MENU_PREVIEW_COLORS[menuPreviewCurrent.name]
+        );
+      });
+    }
+  }
+
+  function tickMenuPreview(now) {
+    if (!menuPreviewRunning) return;
+    if (!menuPreviewBoard) {
+      menuPreviewBoard = makeMenuPreviewBoard();
+      spawnMenuPreviewPiece();
+    }
+
+    if (!menuPreviewLastDrop) menuPreviewLastDrop = now;
+    if (now - menuPreviewLastDrop >= menuPreviewDropMs) {
+      menuPreviewLastDrop = now;
+      if (menuPreviewCurrent && collidesMenuPreview(menuPreviewCurrent, menuPreviewCurrent.y + 1)) {
+        lockMenuPreviewPiece();
+      } else if (menuPreviewCurrent) {
+        menuPreviewCurrent.y++;
+      }
+    }
+
+    drawMenuPreviewCanvas(now);
+    window.requestAnimationFrame(tickMenuPreview);
+  }
+
+  function startMenuPreview() {
+    if (menuPreviewRunning) return;
+    menuPreviewRunning = true;
+    menuPreviewBoard = makeMenuPreviewBoard();
+    menuPreviewPieceIndex = 0;
+    spawnMenuPreviewPiece();
+    window.requestAnimationFrame(tickMenuPreview);
+  }
+
   // ===================== GAME STATE =====================
   var board = createEmptyBoard(), current = null, currentPx = 0, currentPy = 0, currentRot = 0;
   var bag = [], nextPieceName = null, score = 0, lines = 0, level = 1, gameOver = false, paused = false;
@@ -207,8 +411,8 @@
   var AUDIO_LOOP_END_SECONDS = 45; // 0:45
   var AUDIO_PREF_KEY = "tetrisHandsMusicEnabled";
   var AUDIO_PREF_VERSION_KEY = "tetrisHandsMusicPreferenceVersion";
-  var AUDIO_PREF_VERSION = "music-default-45";
-  var audioEnabled = true;
+  var AUDIO_PREF_VERSION = "music-default-off-45";
+  var audioEnabled = false;
   var audioPendingGesture = false;
   var loadStartedAt = Date.now();
   var loaderDone = false;
@@ -221,14 +425,14 @@
     try {
       var storedVersion = window.localStorage.getItem(AUDIO_PREF_VERSION_KEY);
       if (storedVersion !== AUDIO_PREF_VERSION) {
-        window.localStorage.setItem(AUDIO_PREF_KEY, "true");
+        window.localStorage.setItem(AUDIO_PREF_KEY, "false");
         window.localStorage.setItem(AUDIO_PREF_VERSION_KEY, AUDIO_PREF_VERSION);
-        return true;
+        return false;
       }
       var stored = window.localStorage.getItem(AUDIO_PREF_KEY);
-      return stored === null ? true : stored === "true";
+      return stored === null ? false : stored === "true";
     } catch (e) {
-      return true;
+      return false;
     }
   }
 
@@ -2249,6 +2453,7 @@
     if (pendingInviteRoomCode) goMultiLobby();
     else showScreen("screen-menu");
     clearPhaserCanvas();
+    startMenuPreview();
     finishAppLoading();
 
     // Start camera early so it’s ready when you enter game screens

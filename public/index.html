@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tetris Hands</title>
-  <link rel="stylesheet" href="styles.css?v=frontend-redesign-9" />
+  <link rel="stylesheet" href="styles.css?v=frontend-redesign-10" />
 </head>
 <body class="is-loading">
   <div class="app-backdrop" aria-hidden="false">
@@ -39,9 +39,9 @@
   <video id="cvInput" autoplay playsinline muted class="cv-input-video"></video>
 
   <audio id="musicLoop" preload="auto" src="assets/audio/dont-you-want-me-hl.mp3"></audio>
-  <button type="button" id="btnAudioCorner" class="audio-toggle audio-corner audio-enabled" aria-pressed="true" aria-label="Turn music off" title="Turn music off">
+  <button type="button" id="btnAudioCorner" class="audio-toggle audio-corner" aria-pressed="false" aria-label="Turn music on" title="Turn music on">
     <span class="audio-icon" aria-hidden="true"></span>
-    <span class="audio-text">MUSIC ON</span>
+    <span class="audio-text">MUSIC OFF</span>
   </button>
 
   <!-- Phaser game canvas -->
@@ -82,15 +82,16 @@
           </button>
           <div class="menu-settings-row" aria-label="Audio settings">
             <span>SETTINGS</span>
-            <button type="button" id="btnAudioMenu" class="settings-toggle audio-toggle audio-enabled" aria-pressed="true">
+            <button type="button" id="btnAudioMenu" class="settings-toggle audio-toggle" aria-pressed="false">
               <span class="audio-icon" aria-hidden="true"></span>
-              <span class="audio-state">MUSIC ON</span>
+              <span class="audio-state">MUSIC OFF</span>
             </button>
           </div>
         </div>
       </section>
 
       <div class="menu-playfield" aria-hidden="true">
+        <canvas id="menuPreviewCanvas" class="menu-preview-canvas" width="300" height="480"></canvas>
         <span style="--x: 4; --y: 7; --c: var(--warning); --d: 0s"></span>
         <span style="--x: 5; --y: 7; --c: var(--warning); --d: .05s"></span>
         <span style="--x: 6; --y: 7; --c: var(--accent); --d: .1s"></span>
