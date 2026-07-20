@@ -197,9 +197,11 @@
   var gamePhase = "menu";
 
   // ===================== MUSIC LOOP =====================
-  var AUDIO_LOOP_END_SECONDS = 175; // 2:55
+  var AUDIO_LOOP_END_SECONDS = 120; // 2:00
   var AUDIO_PREF_KEY = "tetrisHandsMusicEnabled";
-  var audioEnabled = false;
+  var AUDIO_PREF_VERSION_KEY = "tetrisHandsMusicPreferenceVersion";
+  var AUDIO_PREF_VERSION = "music-default-120";
+  var audioEnabled = true;
   var audioPendingGesture = false;
 
   function getMusicAudio() {
@@ -208,15 +210,23 @@
 
   function readAudioPreference() {
     try {
-      return window.localStorage.getItem(AUDIO_PREF_KEY) === "true";
+      var storedVersion = window.localStorage.getItem(AUDIO_PREF_VERSION_KEY);
+      if (storedVersion !== AUDIO_PREF_VERSION) {
+        window.localStorage.setItem(AUDIO_PREF_KEY, "true");
+        window.localStorage.setItem(AUDIO_PREF_VERSION_KEY, AUDIO_PREF_VERSION);
+        return true;
+      }
+      var stored = window.localStorage.getItem(AUDIO_PREF_KEY);
+      return stored === null ? true : stored === "true";
     } catch (e) {
-      return false;
+      return true;
     }
   }
 
   function writeAudioPreference(enabled) {
     try {
       window.localStorage.setItem(AUDIO_PREF_KEY, enabled ? "true" : "false");
+      window.localStorage.setItem(AUDIO_PREF_VERSION_KEY, AUDIO_PREF_VERSION);
     } catch (e) {}
   }
 
