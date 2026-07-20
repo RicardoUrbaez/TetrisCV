@@ -1091,23 +1091,33 @@ body.in-game .game-container canvas {
 }
 
 .single-layout {
+  --single-top: clamp(58px, 8vh, 90px);
+  --single-x: clamp(16px, 3vw, 56px);
+  --single-bottom: clamp(14px, 3vh, 36px);
+  --single-gap: clamp(12px, 2vw, 34px);
+  --single-max-h: calc(100dvh - var(--single-top) - var(--single-bottom));
   position: absolute;
-  inset: clamp(66px, 9vh, 96px) clamp(20px, 4vw, 64px) clamp(18px, 4vh, 44px);
+  inset: var(--single-top) var(--single-x) var(--single-bottom);
   z-index: 5;
   display: grid;
   grid-template-areas: "hud board camera";
-  grid-template-columns: minmax(210px, 0.76fr) minmax(300px, 1.02fr) minmax(220px, 0.78fr);
-  gap: clamp(14px, 2.6vw, 42px);
+  grid-template-columns:
+    minmax(190px, 0.76fr)
+    minmax(270px, 1.02fr)
+    minmax(190px, 0.78fr);
+  gap: var(--single-gap);
   align-items: stretch;
   justify-content: center;
   min-width: 0;
   min-height: 0;
+  max-height: var(--single-max-h);
 }
 
 .single-left {
   grid-area: hud;
   align-self: center;
   min-width: 0;
+  max-height: var(--single-max-h);
   overflow: hidden;
   pointer-events: auto;
 }
@@ -1230,6 +1240,8 @@ body.in-game .game-container canvas {
   align-self: center;
   justify-self: stretch;
   min-width: 0;
+  max-width: 100%;
+  max-height: var(--single-max-h);
   overflow: hidden;
   pointer-events: auto;
 }
@@ -1245,9 +1257,13 @@ body.in-game .game-container canvas {
 .camera-frame {
   position: relative;
   margin: 0 14px 12px;
+  width: calc(100% - 28px);
+  max-width: calc(100% - 28px);
   overflow: hidden;
   display: grid;
-  min-height: clamp(220px, 24vw, 380px);
+  min-height: 0;
+  height: clamp(150px, 16vw, 300px);
+  max-height: calc(var(--single-max-h) - 96px);
   aspect-ratio: 16 / 9;
   border: 1px solid rgba(96, 239, 93, 0.5);
   border-radius: var(--radius-sm);
@@ -1263,8 +1279,8 @@ body.in-game .game-container canvas {
   inset: 0;
   display: block;
   width: 100%;
-  height: inherit;
-  min-height: inherit;
+  height: 100%;
+  min-height: 0;
   object-fit: cover;
   background: rgba(2, 7, 12, 0.82);
   pointer-events: none;
@@ -1761,14 +1777,32 @@ video {
   }
 
   .single-layout {
-    grid-template-areas:
-      "hud board"
-      "camera board";
-    grid-template-columns: minmax(180px, 0.62fr) minmax(280px, 1fr);
+    --single-top: clamp(54px, 7.4vh, 74px);
+    --single-x: clamp(12px, 2.4vw, 32px);
+    --single-bottom: clamp(10px, 2vh, 22px);
+    --single-gap: clamp(10px, 1.5vw, 18px);
+    grid-template-areas: "hud board camera";
+    grid-template-columns: minmax(150px, 0.72fr) minmax(240px, 1fr) minmax(150px, 0.72fr);
+    align-items: center;
   }
 
+  .single-left,
   .webcam-preview-panel {
-    align-self: stretch;
+    align-self: center;
+    max-height: var(--single-max-h);
+  }
+
+  .hud {
+    padding: clamp(10px, 1.5vw, 16px);
+    gap: clamp(8px, 1.2vh, 12px);
+  }
+
+  .hud-buttons {
+    padding: 0 clamp(10px, 1.5vw, 16px) clamp(10px, 1.5vw, 16px);
+  }
+
+  .camera-frame {
+    height: clamp(128px, 16vw, 188px);
   }
 
   .lobby-shell {
@@ -1952,7 +1986,10 @@ video {
   }
 
   .single-layout {
-    inset: 52px 10px 10px;
+    --single-top: 52px;
+    --single-x: 10px;
+    --single-bottom: 10px;
+    --single-gap: 8px;
     grid-template-areas:
       "hud board"
       "camera board";
@@ -2024,7 +2061,10 @@ video {
 
   .camera-frame {
     margin: 0 8px 8px;
-    min-height: 108px;
+    width: calc(100% - 16px);
+    max-width: calc(100% - 16px);
+    height: clamp(92px, 26vw, 124px);
+    max-height: 22dvh;
   }
 
   .webcam-preview-panel video {
