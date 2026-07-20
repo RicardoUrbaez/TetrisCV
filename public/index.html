@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tetris Hands</title>
-  <link rel="stylesheet" href="styles.css?v=frontend-redesign-7" />
+  <link rel="stylesheet" href="styles.css?v=frontend-redesign-8" />
 </head>
 <body>
   <div class="app-backdrop" aria-hidden="false">
@@ -185,8 +185,10 @@
             <span>KEYBOARD MODE</span>
             <span class="status-dot"></span>
           </div>
-          <div class="next-label">NEXT</div>
-          <canvas id="nextCanvas" class="next-canvas" width="80" height="80"></canvas>
+          <div class="next-panel">
+            <div class="next-label">NEXT PIECE</div>
+            <canvas id="nextCanvas" class="next-canvas" width="112" height="112" aria-label="Next piece preview"></canvas>
+          </div>
         </div>
 
         <div class="hud-buttons">
@@ -284,6 +286,11 @@
           <span><span id="mpScore1">0</span> / <span id="mpLines1">0</span></span>
         </div>
 
+        <div class="next-panel next-panel-versus">
+          <div class="next-label">YOUR NEXT PIECE</div>
+          <canvas id="nextCanvasMultiPlayer" class="next-canvas" width="112" height="112" aria-label="Your next piece preview"></canvas>
+        </div>
+
         <div class="multi-board-slot multi-board-slot-player" aria-hidden="true"></div>
 
         <div id="webcamPreviewP1" class="webcam-preview-panel multi-preview">
@@ -307,6 +314,11 @@
         <div class="multi-hud">
           <span id="opponentNameLabel">OPPONENT</span>
           <span><span id="mpScore2">0</span> / <span id="mpLines2">0</span></span>
+        </div>
+
+        <div class="next-panel next-panel-versus">
+          <div id="opponentNextLabel" class="next-label">OPPONENT NEXT PIECE</div>
+          <canvas id="nextCanvasMultiOpponent" class="next-canvas" width="112" height="112" aria-label="Opponent next piece preview"></canvas>
         </div>
 
         <div class="multi-board-slot multi-board-slot-opponent" aria-hidden="true"></div>

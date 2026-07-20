@@ -493,15 +493,18 @@
     if (o2 && opponentState) o2.textContent = opponentState.lines || 0;
   }
 
-  function drawNextPiece() {
-    var canvas = document.getElementById("nextCanvas");
+  function drawPiecePreview(canvasId, pieceName) {
+    var canvas = document.getElementById(canvasId);
     if (!canvas) return;
     var ctx = canvas.getContext("2d");
-    ctx.fillStyle = "rgba(0,0,0,0.8)";
+    var size = Math.min(canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "rgba(0,0,0,0.72)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (!nextPieceName) return;
-    var piece = getPiece(nextPieceName);
+    if (!pieceName) return;
+    var piece = getPiece(pieceName);
+    if (!piece) return;
     var cells = piece.cells;
 
     var minX = Math.min.apply(null, cells.map(function(c){return c[0];}));
@@ -510,14 +513,27 @@
     var maxY = Math.max.apply(null, cells.map(function(c){return c[1];}));
     var cw = maxX - minX + 1, ch = maxY - minY + 1;
 
-    var block = Math.min(80 / (cw + 1), 80 / (ch + 1), 18);
-    var offX = (80 - cw * block) / 2, offY = (80 - ch * block) / 2;
+    var block = Math.floor(Math.min(size / (cw + 1), size / (ch + 1), size * 0.26));
+    block = Math.max(12, block);
+    var offX = (canvas.width - cw * block) / 2;
+    var offY = (canvas.height - ch * block) / 2;
 
     var hex = piece.color, r = (hex >> 16) & 0xff, g = (hex >> 8) & 0xff, bb = hex & 0xff;
     ctx.fillStyle = "rgb(" + r + "," + g + "," + bb + ")";
+    ctx.strokeStyle = "rgba(255,255,255,0.48)";
+    ctx.lineWidth = 2;
     cells.forEach(function(cell) {
-      ctx.fillRect(offX + (cell[0] - minX) * block, offY + (cell[1] - minY) * block, block - 1, block - 1);
+      var x = offX + (cell[0] - minX) * block;
+      var y = offY + (cell[1] - minY) * block;
+      ctx.fillRect(x + 1, y + 1, block - 2, block - 2);
+      ctx.strokeRect(x + 1, y + 1, block - 2, block - 2);
     });
+  }
+
+  function drawNextPiece() {
+    drawPiecePreview("nextCanvas", nextPieceName);
+    drawPiecePreview("nextCanvasMultiPlayer", nextPieceName);
+    drawPiecePreview("nextCanvasMultiOpponent", opponentState && opponentState.nextPieceName);
   }
 
   function tickUi() {
@@ -665,6 +681,7 @@
       setText("versusGarbageLabel", "GARBAGE ON");
       setText("opponentNameLabel", "CPU");
       setText("opponentCameraLabel", "CPU BOARD");
+      setText("opponentNextLabel", "CPU NEXT PIECE");
       setText("btnStartMultiGame", "START");
       return;
     }
@@ -674,6 +691,7 @@
     setText("versusGarbageLabel", "GARBAGE ON");
     setText("opponentNameLabel", "OPPONENT");
     setText("opponentCameraLabel", "OPPONENT CAMERA");
+    setText("opponentNextLabel", "OPPONENT NEXT PIECE");
     setText("btnStartMultiGame", "START (HOST)");
   }
 
@@ -714,6 +732,7 @@
       current: cpuState.current ? { name: cpuState.current.name, cells: cloneCells(cpuState.current.cells) } : null,
       currentPx: cpuState.currentPx,
       currentPy: cpuState.currentPy,
+      nextPieceName: cpuState.nextPieceName,
       score: cpuState.score,
       lines: cpuState.lines,
       level: cpuState.level,
@@ -1071,10 +1090,11 @@
   }
 
   var config = {
-    type: Phaser.AUTO,
+    type: Phaser.CANVAS,
     width: window.innerWidth,
     height: window.innerHeight,
     parent: "gameContainer",
+    transparent: true,
     backgroundColor: "rgba(0,0,0,0)",
     scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: {
@@ -1167,6 +1187,7 @@
         board: board,
         current: current ? { name: current.name, cells: current.cells } : null,
         currentPx: currentPx, currentPy: currentPy,
+        nextPieceName: nextPieceName,
         score: score, lines: lines, level: level, gameOver: gameOver
       });
     }, 100);
