@@ -196,6 +196,133 @@
   /** menu | ready | playing | paused | gameover */
   var gamePhase = "menu";
 
+  // ===================== MUSIC LOOP =====================
+  var AUDIO_LOOP_END_SECONDS = 175; // 2:55
+  var AUDIO_PREF_KEY = "tetrisHandsMusicEnabled";
+  var audioEnabled = false;
+  var audioPendingGesture = false;
+
+  function getMusicAudio() {
+    return document.getElementById("musicLoop");
+  }
+
+  function readAudioPreference() {
+    try {
+      return window.localStorage.getItem(AUDIO_PREF_KEY) === "true";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function writeAudioPreference(enabled) {
+    try {
+      window.localStorage.setItem(AUDIO_PREF_KEY, enabled ? "true" : "false");
+    } catch (e) {}
+  }
+
+  function updateAudioControls() {
+    var label = audioEnabled ? (audioPendingGesture ? "CLICK TO PLAY" : "MUSIC ON") : "MUSIC OFF";
+    var aria = audioEnabled ? "Turn music off" : "Turn music on";
+    var buttons = document.querySelectorAll(".audio-toggle");
+    buttons.forEach(function(btn) {
+      btn.classList.toggle("audio-enabled", audioEnabled);
+      btn.classList.toggle("audio-pending", audioEnabled && audioPendingGesture);
+      btn.setAttribute("aria-pressed", audioEnabled ? "true" : "false");
+      btn.setAttribute("aria-label", aria);
+      btn.setAttribute("title", aria);
+      var text = btn.querySelector(".audio-text, .audio-state");
+      if (text) text.textContent = label;
+    });
+  }
+
+  function playMusic() {
+    var audio = getMusicAudio();
+    if (!audio || !audioEnabled) return;
+    audio.volume = 0.52;
+    audio.loop = false;
+    if (audio.currentTime >= AUDIO_LOOP_END_SECONDS) audio.currentTime = 0;
+
+    var playAttempt = audio.play();
+    if (playAttempt && typeof playAttempt.then === "function") {
+      playAttempt.then(function() {
+        audioPendingGesture = false;
+        updateAudioControls();
+      }).catch(function() {
+        audioPendingGesture = true;
+        updateAudioControls();
+      });
+    }
+  }
+
+  function pauseMusic(resetPosition) {
+    var audio = getMusicAudio();
+    if (!audio) return;
+    audio.pause();
+    if (resetPosition) {
+      try { audio.currentTime = 0; } catch (e) {}
+    }
+  }
+
+  function setMusicEnabled(enabled) {
+    audioEnabled = !!enabled;
+    audioPendingGesture = false;
+    writeAudioPreference(audioEnabled);
+    if (audioEnabled) playMusic();
+    else pauseMusic(false);
+    updateAudioControls();
+  }
+
+  function toggleMusic() {
+    setMusicEnabled(!audioEnabled);
+  }
+
+  function handleMusicLoopPoint() {
+    var audio = getMusicAudio();
+    if (!audio) return;
+    if (audio.currentTime >= AUDIO_LOOP_END_SECONDS) {
+      audio.currentTime = 0;
+      if (audioEnabled) playMusic();
+    }
+  }
+
+  function bindFirstMusicGesture() {
+    var events = ["pointerdown", "keydown", "touchstart"];
+    function resumeOnGesture() {
+      events.forEach(function(name) {
+        document.removeEventListener(name, resumeOnGesture, true);
+      });
+      if (audioEnabled) playMusic();
+    }
+    events.forEach(function(name) {
+      document.addEventListener(name, resumeOnGesture, true);
+    });
+  }
+
+  function setupMusicControls() {
+    var audio = getMusicAudio();
+    if (!audio) return;
+    audio.loop = false;
+    audio.volume = 0.52;
+    audio.addEventListener("timeupdate", handleMusicLoopPoint);
+    audio.addEventListener("ended", function() {
+      audio.currentTime = 0;
+      if (audioEnabled) playMusic();
+    });
+
+    var corner = document.getElementById("btnAudioCorner");
+    var menu = document.getElementById("btnAudioMenu");
+    if (corner) corner.onclick = toggleMusic;
+    if (menu) menu.onclick = toggleMusic;
+
+    audioEnabled = readAudioPreference();
+    updateAudioControls();
+    if (audioEnabled) {
+      audioPendingGesture = true;
+      updateAudioControls();
+      bindFirstMusicGesture();
+    }
+  }
+
   function gravityMs() { return Math.max(GRAVITY_MIN_MS, GRAVITY_BASE_MS - (level - 1) * 80); }
   function refillBag() { if (bag.length === 0) bag = makeBag(); }
 
@@ -2016,6 +2143,7 @@
     setupSingleButtons();
     setupLobbyButtons();
     setupMultiGameButtons();
+    setupMusicControls();
 
     if (pendingInviteRoomCode) goMultiLobby();
     else showScreen("screen-menu");

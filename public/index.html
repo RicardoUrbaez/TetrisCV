@@ -21,6 +21,12 @@
   <!-- IMPORTANT: dedicated, always-alive CV input video (never displayed) -->
   <video id="cvInput" autoplay playsinline muted class="cv-input-video"></video>
 
+  <audio id="musicLoop" preload="auto" src="assets/audio/dont-you-want-me-hl.mp3"></audio>
+  <button type="button" id="btnAudioCorner" class="audio-toggle audio-corner" aria-pressed="false" aria-label="Turn music on" title="Turn music on">
+    <span class="audio-icon" aria-hidden="true"></span>
+    <span class="audio-text">MUSIC OFF</span>
+  </button>
+
   <!-- Phaser game canvas -->
   <div id="gameContainer" class="game-container"></div>
 
@@ -57,6 +63,13 @@
             <span class="btn-icon icon-book" aria-hidden="true"></span>
             <span>HOW TO PLAY</span>
           </button>
+          <div class="menu-settings-row" aria-label="Audio settings">
+            <span>SETTINGS</span>
+            <button type="button" id="btnAudioMenu" class="settings-toggle audio-toggle" aria-pressed="false">
+              <span class="audio-icon" aria-hidden="true"></span>
+              <span class="audio-state">MUSIC OFF</span>
+            </button>
+          </div>
         </div>
       </section>
 
