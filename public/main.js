@@ -197,10 +197,10 @@
   var gamePhase = "menu";
 
   // ===================== MUSIC LOOP =====================
-  var AUDIO_LOOP_END_SECONDS = 120; // 2:00
+  var AUDIO_LOOP_END_SECONDS = 45; // 0:45
   var AUDIO_PREF_KEY = "tetrisHandsMusicEnabled";
   var AUDIO_PREF_VERSION_KEY = "tetrisHandsMusicPreferenceVersion";
-  var AUDIO_PREF_VERSION = "music-default-120";
+  var AUDIO_PREF_VERSION = "music-default-45";
   var audioEnabled = true;
   var audioPendingGesture = false;
   var loadStartedAt = Date.now();
